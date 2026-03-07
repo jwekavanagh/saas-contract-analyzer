@@ -341,8 +341,8 @@ body {
 .card-header-clickable {
   display: flex;
   flex-direction: column;
-  flex: 1;
   gap: 12px;
+  height: 100%;
 }
 
 .card-header-content-row {
@@ -353,7 +353,6 @@ body {
   justify-content: space-between;
   gap: 12px;
   text-align: left;
-  flex: 1;
   margin-top: auto;
 }
 
