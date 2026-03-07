@@ -6,14 +6,15 @@ import type {
   RenewalClause
 } from "../analysis/contractAnalyzer";
 
+type SelectedTile = "renewal" | "escalators" | "auto" | "issues" | null;
+
 interface SectionProps {
   title: string;
   description: string;
   summary: string;
   variant: "empty" | "info" | "alert";
-  isExpanded: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
+  isSelected: boolean;
+  onSelect: () => void;
 }
 
 function Section({
@@ -21,25 +22,24 @@ function Section({
   description,
   summary,
   variant,
-  isExpanded,
-  onToggle,
-  children
+  isSelected,
+  onSelect
 }: SectionProps) {
   return (
     <section
       className={`card result-card result-card--${variant} ${
-        isExpanded ? "is-expanded" : ""
+        isSelected ? "is-selected" : ""
       }`}
     >
       <header
         className="card-header card-header-clickable"
-        onClick={onToggle}
+        onClick={onSelect}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onToggle();
+            onSelect();
           }
         }}
       >
@@ -50,16 +50,11 @@ function Section({
         <div className="card-summary-row">
           <p className="card-summary-text">{summary}</p>
           <div className="card-toggle-hint">
-            <span className="card-toggle-text">
-              {isExpanded ? "Hide details" : "Show details"}
-            </span>
-            <span className="card-chevron" aria-hidden="true">
-              {isExpanded ? "−" : "+"}
-            </span>
+            <span className="card-toggle-text">Show details</span>
+            <span className="card-chevron" aria-hidden="true">+</span>
           </div>
         </div>
       </header>
-      {isExpanded && <div className="card-body">{children}</div>}
     </section>
   );
 }
@@ -96,17 +91,7 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
     summary
   } = analysis;
 
-  const [expanded, setExpanded] = useState<{
-    renewal: boolean;
-    escalators: boolean;
-    auto: boolean;
-    issues: boolean;
-  }>({
-    renewal: false,
-    escalators: false,
-    auto: false,
-    issues: false
-  });
+  const [selectedTile, setSelectedTile] = useState<SelectedTile>(null);
 
   const renewalSummary = renewalClauses.length
     ? `${renewalClauses.length} renewal-related clause${renewalClauses.length > 1 ? "s" : ""} detected.`
@@ -152,128 +137,142 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
       : "No obvious renewal, pricing, auto-renewal or red-flag issues detected in this excerpt.";
 
   return (
-    <>
+    <div className="results-layout">
       <div className="results-overview-bar">
         <span className="results-overview-label">Overview</span>
         <p className="results-overview-text">{overallSummary}</p>
       </div>
       <div className="results-grid">
         <Section
-        title="Renewal & Term"
-        description="Clauses that mention renewal dates, terms, or expiration."
-        summary={renewalSummary}
-        variant={renewalClauses.length ? "info" : "empty"}
-        isExpanded={expanded.renewal}
-        onToggle={() =>
-          setExpanded((current) => ({ ...current, renewal: !current.renewal }))
-        }
-      >
-        <ClauseList
-          clauses={renewalClauses as RenewalClause[]}
-          renderMeta={(clause: RenewalClause) => (
-            <div className="meta-row">
-              {clause.renewalDate && (
-                <span className="tag">
-                  Renewal / end date: <strong>{clause.renewalDate}</strong>
-                </span>
-              )}
-              {clause.renewalTerm && (
-                <span className="tag">
-                  Renewal term: <strong>{clause.renewalTerm}</strong>
-                </span>
-              )}
-            </div>
-          )}
-        />
-      </Section>
-
-        <Section
-        title="Price Escalators"
-        description="Clauses that mention fee increases, CPI adjustments, or other escalators."
-        summary={escalatorSummary}
-        variant={priceEscalators.length ? "info" : "empty"}
-        isExpanded={expanded.escalators}
-        onToggle={() =>
-          setExpanded((current) => ({
-            ...current,
-            escalators: !current.escalators
-          }))
-        }
-      >
-        <ClauseList
-          clauses={priceEscalators as PriceEscalatorClause[]}
-          renderMeta={(clause: PriceEscalatorClause) => (
-            <div className="meta-row">
-              {clause.percentage && (
-                <span className="tag">
-                  Increase: <strong>{clause.percentage}</strong>
-                </span>
-              )}
-              {clause.frequency && (
-                <span className="tag">
-                  Frequency: <strong>{clause.frequency}</strong>
-                </span>
-              )}
-              {clause.cap && (
-                <span className="tag">
-                  Cap: <strong>{clause.cap}</strong>
-                </span>
-              )}
-            </div>
-          )}
-        />
-      </Section>
-
-        <Section
-        title="Auto-Renewal"
-        description="Clauses where the agreement renews automatically unless you take action."
-        summary={autoSummary}
-        variant={autoRenewalClauses.length ? "info" : "empty"}
-        isExpanded={expanded.auto}
-        onToggle={() =>
-          setExpanded((current) => ({ ...current, auto: !current.auto }))
-        }
-      >
-        <ClauseList
-          clauses={autoRenewalClauses as AutoRenewalClause[]}
-          renderMeta={(clause: AutoRenewalClause) => (
-            <div className="meta-row">
-              {clause.noticePeriod && (
-                <span className="tag">
-                  Notice period: <strong>{clause.noticePeriod}</strong>
-                </span>
-              )}
-              {clause.cancellationMethod && (
-                <span className="tag">
-                  How to cancel: <strong>{clause.cancellationMethod}</strong>
-                </span>
-              )}
-            </div>
-          )}
-        />
-      </Section>
-
-        <Section
-        title="Red Flags & To-Dos"
-        description="AI-highlighted negotiation points to review with counsel."
-        summary={issuesSummary}
-        variant={keyIssues.length ? "alert" : "empty"}
-        isExpanded={expanded.issues}
-        onToggle={() =>
-          setExpanded((current) => ({ ...current, issues: !current.issues }))
-        }
-      >
-        <p className="summary-text">{summary}</p>
-        {keyIssues.length > 0 && (
-          <ul className="issues-list">
-            {keyIssues.map((issue, idx) => (
-              <li key={idx}>{issue}</li>
-            ))}
-          </ul>
-        )}
-      </Section>
+            title="Renewal & Term"
+            description="Clauses that mention renewal dates, terms, or expiration."
+            summary={renewalSummary}
+            variant={renewalClauses.length ? "info" : "empty"}
+            isSelected={selectedTile === "renewal"}
+            onSelect={() =>
+              setSelectedTile((t) => (t === "renewal" ? null : "renewal"))
+            }
+          />
+          <Section
+            title="Price Escalators"
+            description="Clauses that mention fee increases, CPI adjustments, or other escalators."
+            summary={escalatorSummary}
+            variant={priceEscalators.length ? "info" : "empty"}
+            isSelected={selectedTile === "escalators"}
+            onSelect={() =>
+              setSelectedTile((t) => (t === "escalators" ? null : "escalators"))
+            }
+          />
+          <Section
+            title="Auto-Renewal"
+            description="Clauses where the agreement renews automatically unless you take action."
+            summary={autoSummary}
+            variant={autoRenewalClauses.length ? "info" : "empty"}
+            isSelected={selectedTile === "auto"}
+            onSelect={() =>
+              setSelectedTile((t) => (t === "auto" ? null : "auto"))
+            }
+          />
+          <Section
+            title="Red Flags & To-Dos"
+            description="AI-highlighted negotiation points to review with counsel."
+            summary={issuesSummary}
+            variant={keyIssues.length ? "alert" : "empty"}
+            isSelected={selectedTile === "issues"}
+            onSelect={() =>
+              setSelectedTile((t) => (t === "issues" ? null : "issues"))
+            }
+          />
       </div>
-    </>
+      {selectedTile !== null && (
+        <section className="results-detail-panel" aria-label="Detail view">
+          {selectedTile === "renewal" ? (
+            <div className="detail-panel-inner">
+              <h3 className="detail-panel-title">Renewal & Term</h3>
+              <ClauseList
+              clauses={renewalClauses as RenewalClause[]}
+              renderMeta={(clause: RenewalClause) => (
+                <div className="meta-row">
+                  {clause.renewalDate && (
+                    <span className="tag">
+                      Renewal / end date: <strong>{clause.renewalDate}</strong>
+                    </span>
+                  )}
+                  {clause.renewalTerm && (
+                    <span className="tag">
+                      Renewal term: <strong>{clause.renewalTerm}</strong>
+                    </span>
+                  )}
+                </div>
+              )}
+            />
+            </div>
+          ) : selectedTile === "escalators" ? (
+            <div className="detail-panel-inner">
+              <h3 className="detail-panel-title">Price Escalators</h3>
+              <ClauseList
+              clauses={priceEscalators as PriceEscalatorClause[]}
+              renderMeta={(clause: PriceEscalatorClause) => (
+                <div className="meta-row">
+                  {clause.percentage && (
+                    <span className="tag">
+                      Increase: <strong>{clause.percentage}</strong>
+                    </span>
+                  )}
+                  {clause.frequency && (
+                    <span className="tag">
+                      Frequency: <strong>{clause.frequency}</strong>
+                    </span>
+                  )}
+                  {clause.cap && (
+                    <span className="tag">
+                      Cap: <strong>{clause.cap}</strong>
+                    </span>
+                  )}
+                </div>
+              )}
+            />
+            </div>
+          ) : selectedTile === "auto" ? (
+            <div className="detail-panel-inner">
+              <h3 className="detail-panel-title">Auto-Renewal</h3>
+              <ClauseList
+              clauses={autoRenewalClauses as AutoRenewalClause[]}
+              renderMeta={(clause: AutoRenewalClause) => (
+                <div className="meta-row">
+                  {clause.noticePeriod && (
+                    <span className="tag">
+                      Notice period: <strong>{clause.noticePeriod}</strong>
+                    </span>
+                  )}
+                  {clause.cancellationMethod && (
+                    <span className="tag">
+                      How to cancel: <strong>{clause.cancellationMethod}</strong>
+                    </span>
+                  )}
+                </div>
+              )}
+            />
+            </div>
+          ) : (
+            <div className="detail-panel-inner">
+              <h3 className="detail-panel-title">Red Flags & To-Dos</h3>
+              <p className="detail-panel-heuristic-note">
+                Heuristic engine: {keyIssues.length} issue{keyIssues.length !== 1 ? "s" : ""} flagged.
+                See README for LLM roadmap.
+              </p>
+              <p className="summary-text">{summary}</p>
+              {keyIssues.length > 0 && (
+                <ul className="issues-list">
+                  {keyIssues.map((issue, idx) => (
+                    <li key={idx}>{issue}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+    </div>
   );
 }
-
