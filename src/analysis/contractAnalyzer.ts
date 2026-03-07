@@ -1,27 +1,22 @@
-export interface RenewalClause {
-  sentence: string;
-  renewalDate?: string;
-  renewalTerm?: string;
-}
+import {
+  scoreContractAnalysis,
+  type ScoredIssue,
+  type ScoredRenewalClause,
+  type ScoredPriceEscalatorClause,
+  type ScoredAutoRenewalClause
+} from "./severityConfig";
 
-export interface PriceEscalatorClause {
-  sentence: string;
-  percentage?: string;
-  frequency?: string;
-  cap?: string;
-}
+export type { ScoredIssue } from "./severityConfig";
 
-export interface AutoRenewalClause {
-  sentence: string;
-  noticePeriod?: string;
-  cancellationMethod?: string;
-}
+export type RenewalClause = ScoredRenewalClause;
+export type PriceEscalatorClause = ScoredPriceEscalatorClause;
+export type AutoRenewalClause = ScoredAutoRenewalClause;
 
 export interface ContractAnalysis {
   renewalClauses: RenewalClause[];
   priceEscalators: PriceEscalatorClause[];
   autoRenewalClauses: AutoRenewalClause[];
-  keyIssues: string[];
+  issues: ScoredIssue[];
   summary: string;
 }
 
@@ -82,10 +77,9 @@ export function analyzeContract(text: string): ContractAnalysis {
   const sentences = splitSentences(text);
   const loweredText = text.toLowerCase();
 
-  const renewalClauses: RenewalClause[] = [];
-  const priceEscalators: PriceEscalatorClause[] = [];
-  const autoRenewalClauses: AutoRenewalClause[] = [];
-  const keyIssues: string[] = [];
+  const rawRenewal: Array<{ sentence: string; renewalDate?: string; renewalTerm?: string }> = [];
+  const rawEscalators: Array<{ sentence: string; percentage?: string; frequency?: string; cap?: string }> = [];
+  const rawAutoRenewal: Array<{ sentence: string; noticePeriod?: string; cancellationMethod?: string }> = [];
 
   for (const sentence of sentences) {
     const lowered = sentence.toLowerCase();
@@ -97,7 +91,7 @@ export function analyzeContract(text: string): ContractAnalysis {
       lowered.includes("expiration") ||
       lowered.includes("term of this agreement")
     ) {
-      renewalClauses.push({
+      rawRenewal.push({
         sentence,
         renewalDate: extractDate(sentence),
         renewalTerm: lowered.includes("one (1) year")
@@ -118,7 +112,7 @@ export function analyzeContract(text: string): ContractAnalysis {
       lowered.includes("cpi") ||
       lowered.includes("consumer price index")
     ) {
-      priceEscalators.push({
+      rawEscalators.push({
         sentence,
         percentage: extractPercentage(sentence),
         frequency: extractFrequency(sentence),
@@ -135,7 +129,7 @@ export function analyzeContract(text: string): ContractAnalysis {
       lowered.includes("shall automatically renew") ||
       lowered.includes("automatic renewal")
     ) {
-      autoRenewalClauses.push({
+      rawAutoRenewal.push({
         sentence,
         noticePeriod: extractNoticePeriod(sentence),
         cancellationMethod: extractCancellationMethod(sentence)
@@ -143,66 +137,27 @@ export function analyzeContract(text: string): ContractAnalysis {
     }
   }
 
-  // High-level issues
-  if (autoRenewalClauses.length === 0) {
-    keyIssues.push("No explicit auto-renewal clause found.");
-  } else {
-    const anyLongNotice = autoRenewalClauses.some((c) => {
-      if (!c.noticePeriod) return false;
-      const match = c.noticePeriod.match(/(\d{1,3})\s*(day|days|month|months)/i);
-      if (!match) return false;
-      const value = Number(match[1]);
-      const unit = match[2].toLowerCase();
-      if (unit.startsWith("day")) {
-        return value > 60;
-      }
-      if (unit.startsWith("month")) {
-        return value > 2;
-      }
-      return false;
-    });
-    if (anyLongNotice) {
-      keyIssues.push(
-        "Auto-renewal notice period appears long; consider negotiating a shorter window (e.g. 30–60 days)."
-      );
-    }
-  }
-
-  if (priceEscalators.length === 0) {
-    keyIssues.push("No explicit price escalator clause found; verify that pricing is stable over the term.");
-  } else {
-    const anyHighIncrease = priceEscalators.some((c) => {
-      if (!c.percentage) return false;
-      const num = Number(c.percentage.replace("%", "").trim());
-      return !Number.isNaN(num) && num > 7;
-    });
-    if (anyHighIncrease) {
-      keyIssues.push(
-        "One or more price escalators exceed ~7% per year; consider negotiating a lower cap or CPI-based adjustment."
-      );
-    }
-  }
-
-  if (!loweredText.includes("termination for convenience")) {
-    keyIssues.push(
-      "No 'termination for convenience' language detected; confirm how you can exit the agreement before the end of the term."
-    );
-  }
+  const scored = scoreContractAnalysis({
+    renewalClauses: rawRenewal,
+    priceEscalators: rawEscalators,
+    autoRenewalClauses: rawAutoRenewal,
+    fullText: text
+  });
 
   const summaryParts: string[] = [];
-  if (renewalClauses.length) {
+  if (scored.renewalClauses.length) {
     summaryParts.push(
-      `Detected ${renewalClauses.length} renewal-related clause${renewalClauses.length > 1 ? "s" : ""}.`
+      `Detected ${scored.renewalClauses.length} renewal-related clause${scored.renewalClauses.length > 1 ? "s" : ""}.`
     );
   }
-  if (autoRenewalClauses.length) {
+  if (scored.autoRenewalClauses.length) {
     summaryParts.push(
-      `${autoRenewalClauses.length} clause${autoRenewalClauses.length > 1 ? "s" : ""} mention automatic renewal.`
+      `${scored.autoRenewalClauses.length} clause${scored.autoRenewalClauses.length > 1 ? "s" : ""} mention automatic renewal.`
     );
   }
-  if (priceEscalators.length) {
+  if (scored.priceEscalators.length) {
     summaryParts.push(
-      `${priceEscalators.length} clause${priceEscalators.length > 1 ? "s" : ""} mention fee increases or escalators.`
+      `${scored.priceEscalators.length} clause${scored.priceEscalators.length > 1 ? "s" : ""} mention fee increases or escalators.`
     );
   }
 
@@ -212,10 +167,10 @@ export function analyzeContract(text: string): ContractAnalysis {
       : "No obvious renewal, auto-renewal, or price escalator clauses were detected. Review the agreement manually.";
 
   return {
-    renewalClauses,
-    priceEscalators,
-    autoRenewalClauses,
-    keyIssues,
+    renewalClauses: scored.renewalClauses,
+    priceEscalators: scored.priceEscalators,
+    autoRenewalClauses: scored.autoRenewalClauses,
+    issues: scored.issues,
     summary
   };
 }

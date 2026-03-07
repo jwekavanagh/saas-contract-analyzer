@@ -1,6 +1,6 @@
 # SaaS Contract Analyzer
 
-AI-powered tool for reviewing SaaS contracts. Paste raw contract text and the app flags renewal traps, price escalators, asymmetric clauses, and other negotiation risks.
+AI-powered tool for reviewing SaaS contracts. Paste raw contract text and the app flags renewal traps, price escalators, and other negotiation risks, then **scores them by severity** so you can focus on the worst items first.
 
 ## What it does
 
@@ -8,13 +8,18 @@ AI-powered tool for reviewing SaaS contracts. Paste raw contract text and the ap
 - Detects **renewal terms** and auto-renewal mechanics
 - Flags **price escalator** language and fee increase triggers
 - Extracts key metadata: notice periods, term lengths, percentages
-- Surfaces a summary of detected issues
+- **Scores each finding by severity** (high / medium / low / informational) with a plain-language reason
+- Surfaces a **prioritized** Red Flags list and severity breakdown in the overview
 
 ## How it works
 
-React + Vite + TypeScript app. Analysis runs entirely in the browser via a heuristic pattern matcher in `src/analysis/contractAnalyzer.ts`. No data leaves the browser.
+React + Vite + TypeScript app. Analysis runs entirely in the browser. No data leaves the browser.
 
-The analyzer currently handles renewal, auto-renewal, and price escalation detection well. The architecture is designed so the local heuristic engine can be swapped for an LLM-based analyzer for deeper clause-level reasoning.
+1. **Detection**: `src/analysis/contractAnalyzer.ts` uses heuristic pattern matching to find renewal, auto-renewal, price escalator, and termination-related language.
+2. **Scoring**: `src/analysis/severityConfig.ts` assigns a severity level and reason to each finding. Rules and thresholds (e.g. >60 days notice = high, uncapped escalator = high) live in this config so they can be tuned without touching detection logic.
+3. **UI**: The **Red Flags & To-Dos** section is the primary action surface: issues are sorted high → medium → low → informational, each with a severity badge and reason. The overview bar shows a severity breakdown (e.g. "2 high · 1 medium · 1 low"). Category detail views show a severity badge on each clause.
+
+The architecture is designed so the heuristic engine can be swapped or augmented with an LLM-based analyzer for deeper clause-level reasoning.
 
 ## Testing & gap analysis
 
@@ -28,22 +33,25 @@ To stress-test the tool, I generated a realistic 11-section SaaS master agreemen
 | **Operational / SLA** | Unlimited maintenance exclusions from uptime calculations, 15% SLA credit cap, no severity-tiered support, revocable license grant |
 | **Legal / Structural** | Unilateral amendment via website posting, mandatory arbitration with no carve-outs, 1-year confidentiality tail, force majeure covering cloud infrastructure failures |
 
-### Current detection results
+### Current detection and severity
 
-The analyzer correctly flags:
-- 2 renewal-related clauses
-- 1 price escalator clause
-- 2 auto-renewal clauses
+The analyzer detects renewal, auto-renewal, and price escalator clauses and scores them by risk. For example:
 
-It does not yet surface the deeper red flags — asymmetric obligations, contradictory clauses, below-market terms, or regulatory risk. This is the expected gap for a heuristic/pattern-matching approach and the motivation for moving to LLM-based analysis.
+- **High**: e.g. auto-renewal notice >60 days, uncapped or >10% price increases, customer must give >60 days to terminate, one-sided termination for convenience
+- **Medium**: e.g. 31–60 day notice, escalators capped 5–10%, no termination-for-convenience language
+- **Low**: e.g. ≤30 day notice, CPI-linked escalator with ≤5% cap
+- **Informational**: detected but no rule match, or missing-clause notes
+
+The built-in sample contract triggers at least one high and one medium issue so you can see prioritization on first use.
+
+It does not yet surface deeper red flags: asymmetric obligations, contradictory clauses, below-market terms, or regulatory risk. That is the expected gap for a heuristic approach and the motivation for moving to LLM-based analysis.
 
 ### Planned improvements
 
-- **Clause asymmetry detection** — identify who bears the obligation vs. who benefits in each clause
-- **Cross-clause contradiction flagging** — e.g., data ownership statement vs. perpetual data license
-- **Market benchmarking** — compare specific terms (liability caps, notice periods, data retrieval windows) against industry norms
-- **Severity scoring** — rank issues by negotiation impact
-- **LLM integration** — replace or augment the heuristic engine with an API call for deeper reasoning
+- **Clause asymmetry detection**: identify who bears the obligation vs. who benefits in each clause
+- **Cross-clause contradiction flagging**: e.g., data ownership statement vs. perpetual data license
+- **Market benchmarking**: compare specific terms (liability caps, notice periods, data retrieval windows) against industry norms
+- **LLM integration**: replace or augment the heuristic engine with an API call for deeper reasoning
 
 ## Getting started
 

@@ -5,6 +5,7 @@ import type {
   PriceEscalatorClause,
   RenewalClause
 } from "../analysis/contractAnalyzer";
+import type { Severity } from "../analysis/severityConfig";
 
 type SelectedTile = "renewal" | "escalators" | "auto" | "issues" | null;
 
@@ -59,12 +60,22 @@ function Section({
   );
 }
 
+function SeverityBadge({ severity }: { severity: Severity }) {
+  return (
+    <span className={`severity-badge severity-badge--${severity}`} title={severity}>
+      {severity}
+    </span>
+  );
+}
+
 function ClauseList({
   clauses,
-  renderMeta
+  renderMeta,
+  showSeverity
 }: {
-  clauses: { sentence: string }[];
+  clauses: Array<{ sentence: string; severity?: Severity; reason?: string }>;
   renderMeta?: (clause: any) => React.ReactNode;
+  showSeverity?: boolean;
 }) {
   if (!clauses.length) {
     return <p className="muted">Nothing detected in this category.</p>;
@@ -74,7 +85,12 @@ function ClauseList({
     <ol className="clause-list">
       {clauses.map((clause, index) => (
         <li key={index} className="clause-item">
-          <p className="clause-text">{clause.sentence}</p>
+          <div className="clause-item-header">
+            {showSeverity && "severity" in clause && clause.severity && (
+              <SeverityBadge severity={clause.severity} />
+            )}
+            <p className="clause-text">{clause.sentence}</p>
+          </div>
           {renderMeta && <div className="clause-meta">{renderMeta(clause)}</div>}
         </li>
       ))}
@@ -87,11 +103,24 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
     renewalClauses,
     priceEscalators,
     autoRenewalClauses,
-    keyIssues,
+    issues,
     summary
   } = analysis;
 
   const [selectedTile, setSelectedTile] = useState<SelectedTile>(null);
+
+  const highCount = issues.filter((i) => i.severity === "high").length;
+  const mediumCount = issues.filter((i) => i.severity === "medium").length;
+  const lowCount = issues.filter((i) => i.severity === "low").length;
+  const infoCount = issues.filter((i) => i.severity === "informational").length;
+  const severitySummaryParts: string[] = [];
+  if (highCount) severitySummaryParts.push(`${highCount} high`);
+  if (mediumCount) severitySummaryParts.push(`${mediumCount} medium`);
+  if (lowCount) severitySummaryParts.push(`${lowCount} low`);
+  if (infoCount) severitySummaryParts.push(`${infoCount} informational`);
+  const severityBreakdown = severitySummaryParts.length
+    ? severitySummaryParts.join(" · ")
+    : "No issues flagged.";
 
   const renewalSummary = renewalClauses.length
     ? `${renewalClauses.length} renewal-related clause${renewalClauses.length > 1 ? "s" : ""} detected.`
@@ -105,19 +134,20 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
     ? `${autoRenewalClauses.length} auto-renewal clause${autoRenewalClauses.length > 1 ? "s" : ""} detected.`
     : "No automatic renewal language clearly detected.";
 
-  const issuesSummary = keyIssues.length
-    ? `${keyIssues.length} negotiation point${keyIssues.length > 1 ? "s" : ""} flagged.`
-    : "No obvious issues surfaced. Review with counsel for confirmation.";
+  const issuesSummary =
+    issues.length > 0
+      ? severityBreakdown
+      : "No issues surfaced. Review with counsel for confirmation.";
 
   const overallSummaryParts: string[] = [];
   if (renewalClauses.length) {
     overallSummaryParts.push(
-      `${renewalClauses.length} renewal-related clause${renewalClauses.length > 1 ? "s" : ""}`
+      `${renewalClauses.length} renewal clause${renewalClauses.length > 1 ? "s" : ""}`
     );
   }
   if (priceEscalators.length) {
     overallSummaryParts.push(
-      `${priceEscalators.length} price escalator clause${priceEscalators.length > 1 ? "s" : ""}`
+      `${priceEscalators.length} escalator clause${priceEscalators.length > 1 ? "s" : ""}`
     );
   }
   if (autoRenewalClauses.length) {
@@ -125,16 +155,14 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
       `${autoRenewalClauses.length} auto-renewal clause${autoRenewalClauses.length > 1 ? "s" : ""}`
     );
   }
-  if (keyIssues.length) {
-    overallSummaryParts.push(
-      `${keyIssues.length} negotiation point${keyIssues.length > 1 ? "s" : ""} flagged`
-    );
+  if (issues.length) {
+    overallSummaryParts.push(severityBreakdown);
   }
 
   const overallSummary =
     overallSummaryParts.length > 0
       ? overallSummaryParts.join(" · ")
-      : "No obvious renewal, pricing, auto-renewal or red-flag issues detected in this excerpt.";
+      : "No renewal, pricing, or auto-renewal clauses detected in this excerpt.";
 
   return (
     <div className="results-layout">
@@ -175,9 +203,9 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
           />
           <Section
             title="Red Flags & To-Dos"
-            description="AI-highlighted negotiation points to review with counsel."
+            description="Prioritized issues by risk. Start with high, then medium."
             summary={issuesSummary}
-            variant={keyIssues.length ? "alert" : "empty"}
+            variant={highCount > 0 || mediumCount > 0 ? "alert" : issues.length ? "info" : "empty"}
             isSelected={selectedTile === "issues"}
             onSelect={() =>
               setSelectedTile((t) => (t === "issues" ? null : "issues"))
@@ -190,7 +218,8 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
             <div className="detail-panel-inner">
               <h3 className="detail-panel-title">Renewal & Term</h3>
               <ClauseList
-              clauses={renewalClauses as RenewalClause[]}
+              clauses={renewalClauses}
+              showSeverity
               renderMeta={(clause: RenewalClause) => (
                 <div className="meta-row">
                   {clause.renewalDate && (
@@ -211,7 +240,8 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
             <div className="detail-panel-inner">
               <h3 className="detail-panel-title">Price Escalators</h3>
               <ClauseList
-              clauses={priceEscalators as PriceEscalatorClause[]}
+              clauses={priceEscalators}
+              showSeverity
               renderMeta={(clause: PriceEscalatorClause) => (
                 <div className="meta-row">
                   {clause.percentage && (
@@ -237,7 +267,8 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
             <div className="detail-panel-inner">
               <h3 className="detail-panel-title">Auto-Renewal</h3>
               <ClauseList
-              clauses={autoRenewalClauses as AutoRenewalClause[]}
+              clauses={autoRenewalClauses}
+              showSeverity
               renderMeta={(clause: AutoRenewalClause) => (
                 <div className="meta-row">
                   {clause.noticePeriod && (
@@ -258,17 +289,25 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
             <div className="detail-panel-inner">
               <h3 className="detail-panel-title">Red Flags & To-Dos</h3>
               <p className="detail-panel-heuristic-note">
-                Heuristic engine: {keyIssues.length} issue{keyIssues.length !== 1 ? "s" : ""} flagged.
+                Heuristic engine: {issues.length} issue{issues.length !== 1 ? "s" : ""} flagged.
                 See README for LLM roadmap.
               </p>
               <p className="summary-text">{summary}</p>
-              {keyIssues.length > 0 && (
-                <ul className="issues-list">
-                  {keyIssues.map((issue, idx) => (
-                    <li key={idx}>{issue}</li>
+              {issues.length > 0 ? (
+                <ul className="issues-list-by-severity">
+                  {issues.map((issue, idx) => (
+                    <li key={idx} className={`issues-list-item issues-list-item--${issue.severity}`}>
+                      <SeverityBadge severity={issue.severity} />
+                      <div className="issues-list-item-content">
+                        <p className="issues-list-item-reason">{issue.reason}</p>
+                        {issue.clauseText && (
+                          <p className="issues-list-item-clause">{issue.clauseText}</p>
+                        )}
+                      </div>
+                    </li>
                   ))}
                 </ul>
-              )}
+              ) : null}
             </div>
           )}
         </section>
