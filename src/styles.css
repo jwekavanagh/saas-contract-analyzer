@@ -97,9 +97,6 @@ body {
 .card-header {
   padding: 20px 24px 10px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.22);
-  display: flex;
-  flex-direction: column;
-  flex: 1;
 }
 
 .card-header h2 {
