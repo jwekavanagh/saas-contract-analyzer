@@ -97,6 +97,9 @@ body {
 .card-header {
   padding: 20px 24px 10px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .card-header h2 {
@@ -334,9 +337,18 @@ body {
     box-shadow 160ms ease-out,
     transform 140ms ease-out,
     background 160ms ease-out;
+  display: flex;
+  flex-direction: column;
 }
 
 .card-header-clickable {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 12px;
+}
+
+.card-header-content-row {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
@@ -344,6 +356,8 @@ body {
   justify-content: space-between;
   gap: 12px;
   text-align: left;
+  flex: 1;
+  margin-top: auto;
 }
 
 .card-header-main {

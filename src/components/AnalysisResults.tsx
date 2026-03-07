@@ -44,15 +44,17 @@ function Section({
           }
         }}
       >
-        <div className="card-header-main">
-          <h2>{title}</h2>
-          <p className="card-subtitle">{description}</p>
-        </div>
-        <div className="card-summary-row">
-          <p className="card-summary-text">{summary}</p>
-          <div className="card-toggle-hint">
-            <span className="card-toggle-text">Show details</span>
-            <span className="card-chevron" aria-hidden="true">+</span>
+        <div className="card-header-content-row">
+          <div className="card-header-main">
+            <h2>{title}</h2>
+            <p className="card-subtitle">{description}</p>
+          </div>
+          <div className="card-summary-row">
+            <p className="card-summary-text">{summary}</p>
+            <div className="card-toggle-hint">
+              <span className="card-toggle-text">Show details</span>
+              <span className="card-chevron" aria-hidden="true">+</span>
+            </div>
           </div>
         </div>
       </header>
