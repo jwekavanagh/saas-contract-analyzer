@@ -279,16 +279,12 @@ body {
 
 .primary-button {
   background: radial-gradient(circle at 20% 0, var(--accent-stronger), var(--accent));
-  color: var(--bg);
+  color: #0b1120;
   font-weight: 600;
   box-shadow:
     0 12px 25px var(--card-shadow-selected),
     0 0 0 1px var(--accent-stronger);
   transition: opacity 0.2s ease, box-shadow 0.2s ease;
-}
-
-body.light .primary-button {
-  color: #ffffff;
 }
 
 .primary-button:disabled {

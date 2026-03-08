@@ -3,12 +3,11 @@ import { useEffect, useRef, useState } from "react";
 type Theme = "light" | "dark";
 
 export function ThemeToggle() {
-  // Track if this is the initial mount and if we have a manual preference
-  const isInitialMount = useRef(true);
-  const hasManualPreference = useRef(() => {
-    // Check if localStorage already has a saved preference (set before this component mounted)
-    return localStorage.getItem("theme") !== null;
-  })();
+  // Track if the user has manually set a preference (vs. auto-detected from OS)
+  // Use a separate localStorage key to persist this flag
+  const hasManualPreference = useRef(
+    localStorage.getItem("theme-manual") === "true"
+  );
 
   const [theme, setTheme] = useState<Theme>(() => {
     // Read from body class first (set by main.tsx before React renders)
@@ -35,17 +34,12 @@ export function ThemeToggle() {
     document.body.classList.remove("light", "dark");
     document.body.classList.add(theme);
     
-    // Only save to localStorage if:
-    // 1. This is not the initial mount (user manually toggled), OR
-    // 2. We already had a manual preference (preserve it)
-    if (!isInitialMount.current || hasManualPreference.current) {
-      localStorage.setItem("theme", theme);
-      hasManualPreference.current = true;
-    }
+    // Always save the theme to localStorage so it persists across reloads
+    localStorage.setItem("theme", theme);
     
-    // Mark that initial mount is complete
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
+    // Save the manual preference flag if it was manually set
+    if (hasManualPreference.current) {
+      localStorage.setItem("theme-manual", "true");
     }
   }, [theme]);
 
@@ -64,8 +58,9 @@ export function ThemeToggle() {
   }, []);
 
   const toggleTheme = () => {
-    // Mark as manual preference when user toggles
+    // Mark as manual preference when user toggles (so OS changes are ignored)
     hasManualPreference.current = true;
+    localStorage.setItem("theme-manual", "true");
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
 
