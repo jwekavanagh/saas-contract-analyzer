@@ -267,13 +267,13 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
     if (days != null) {
       if (days > NOTICE_DAYS_HIGH) {
         severity = "high";
-        reason = `Auto-renewal notice period is ${c.noticePeriod} — easy to miss, may result in involuntary renewal.`;
+        reason = `Auto-renewal notice period is ${c.noticePeriod} — easy to miss, may result in involuntary renewal. Market standard: 30-60 days.`;
       } else if (days > NOTICE_DAYS_MEDIUM) {
         severity = "medium";
-        reason = `${c.noticePeriod} notice required — negotiate a shorter window if possible.`;
+        reason = `${c.noticePeriod} notice required — negotiate a shorter window if possible. Market standard: 30-60 days.`;
       } else {
         severity = "low";
-        reason = `Standard notice period (${c.noticePeriod}).`;
+        reason = `Standard notice period (${c.noticePeriod}). Market standard: 30-60 days.`;
       }
     }
     issues.push({ severity, reason, clauseText: c.sentence, category: "auto_renewal" });
@@ -290,16 +290,16 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
     let reason = "Price increase clause detected.";
     if (pct != null && !hasCap) {
       severity = "high";
-      reason = "Uncapped price increase — no ceiling on annual raises.";
+      reason = "Uncapped price increase — no ceiling on annual raises. Market standard: 3-5% or CPI-linked.";
     } else if (pct != null && pct > ESCALATOR_PCT_HIGH) {
       severity = "high";
-      reason = `Increase up to ${c.percentage} per year — high exposure; negotiate a lower cap.`;
+      reason = `Increase up to ${c.percentage} per year — high exposure; negotiate a lower cap. Market standard: 3-5% or CPI-linked.`;
     } else if (pct != null && pct >= ESCALATOR_PCT_MEDIUM && pct <= ESCALATOR_PCT_HIGH) {
       severity = "medium";
-      reason = `Escalator capped at ${c.percentage} — reasonable but worth negotiating.`;
+      reason = `Escalator capped at ${c.percentage} — reasonable but worth negotiating. Market standard: 3-5% or CPI-linked.`;
     } else if (hasCap && (isCpi || (pct != null && pct <= ESCALATOR_PCT_MEDIUM))) {
       severity = "low";
-      reason = isCpi ? "CPI-linked with a cap — standard." : `Capped at ${c.percentage} — low risk.`;
+      reason = isCpi ? "CPI-linked with a cap — standard. Market standard: 3-5% or CPI-linked." : `Capped at ${c.percentage} — low risk. Market standard: 3-5% or CPI-linked.`;
     }
     issues.push({ severity, reason, clauseText: c.sentence, category: "price_escalator" });
     return { ...c, severity, reason };
@@ -317,7 +317,7 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
   if (terminationNoticeDays != null && terminationNoticeDays > NOTICE_DAYS_HIGH) {
     issues.push({
       severity: "high",
-      reason: `Customer must give ${terminationNoticeDays} days’ notice to terminate — long window increases risk of involuntary renewal.`,
+      reason: `Customer must give ${terminationNoticeDays} days' notice to terminate — long window increases risk of involuntary renewal. Market standard: 30-60 days.`,
       category: "termination"
     });
   }
