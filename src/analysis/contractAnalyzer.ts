@@ -298,7 +298,7 @@ function extractDate(sentence: string): string | undefined {
 }
 
 function extractPercentage(sentence: string): string | undefined {
-  const percentRegex = /\b\d{1,2}(?:\.\d+)?\s*%\b/;
+  const percentRegex = /\b\d{1,2}(?:\.\d+)?\s*%/;
   return sentence.match(percentRegex)?.[0];
 }
 
@@ -659,13 +659,33 @@ export function analyzeContract(text: string): ContractAnalysis {
       lowered.includes("cpi") ||
       lowered.includes("consumer price index")
     ) {
+      // Detect if there's a cap, but exclude negations like "without cap", "no cap", "uncapped"
+      let hasCap = false;
+      
+      // First check for explicit negations - if found, definitely no cap
+      const hasNegation = /\b(without|no|not|un)\s+(?:cap|ceiling|maximum|limit)\b/i.test(sentence) ||
+                         /\buncapped\b/i.test(sentence);
+      
+      if (!hasNegation) {
+        // Check for explicit cap indicators (not to exceed, ceiling, maximum)
+        if (lowered.includes("not exceed") || 
+            lowered.includes("not to exceed") ||
+            lowered.includes("ceiling") || 
+            lowered.includes("maximum")) {
+          hasCap = true;
+        }
+        
+        // Check for "cap" - only if no negation was found
+        if (lowered.includes("cap")) {
+          hasCap = true;
+        }
+      }
+      
       rawEscalators.push({
         sentence,
         percentage: extractPercentage(sentence),
         frequency: extractFrequency(sentence),
-        cap: lowered.includes("cap") || lowered.includes("not exceed")
-          ? "Capped"
-          : undefined
+        cap: hasCap ? "Capped" : undefined
       });
     }
 

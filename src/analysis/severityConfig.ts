@@ -283,7 +283,8 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
   // --- Price escalators ---
   const scoredEscalators: ScoredPriceEscalatorClause[] = priceEscalators.map((c) => {
     const pct = parsePercent(c.percentage);
-    const hasCap = c.cap != null || /not exceed|cap|ceiling|maximum/i.test(c.sentence);
+    // Read cap from the field set by the analyzer - don't re-detect it
+    const hasCap = c.cap != null;
     const isCpi = /cpi|consumer price index/i.test(c.sentence);
     let severity: Severity = "informational";
     let reason = "Price increase clause detected.";
