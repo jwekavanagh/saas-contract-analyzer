@@ -118,6 +118,112 @@ function hasOneSidedTerminationForConvenience(text: string): boolean {
   return customerOnly;
 }
 
+/** Extract section reference from clause text (e.g., "Section 5.1", "Article 4") */
+function extractSectionReference(text: string): string {
+  const sectionMatch = text.match(/(?:Section|Article|Clause)\s+[\d.]+/i);
+  if (sectionMatch) {
+    return sectionMatch[0];
+  }
+  return "";
+}
+
+/** Extract key ownership phrase from clause (e.g., "Customer retains ownership") */
+function extractOwnershipPhrase(text: string): string {
+  // Look for patterns like "Customer retains ownership", "Customer owns", "retain all ownership"
+  // Priority: patterns that include "Customer" as subject
+  const customerPattern = /(?:the\s+)?customer\s+(?:retains?|shall\s+retain|owns?|shall\s+own)\s+(?:all\s+)?(?:rights\s+and\s+)?ownership/i;
+  const customerMatch = text.match(customerPattern);
+  if (customerMatch) {
+    let phrase = customerMatch[0].trim();
+    // Normalize "The Customer" to "Customer"
+    phrase = phrase.replace(/^the\s+/i, "");
+    // Truncate if too long (shouldn't be, but just in case)
+    if (phrase.length > 45) {
+      phrase = phrase.substring(0, 42) + "...";
+    }
+    return phrase;
+  }
+  
+  // Fallback: look for "retains ownership" or similar
+  const retainPattern = /retains?\s+(?:all\s+)?(?:rights\s+and\s+)?ownership/i;
+  const retainMatch = text.match(retainPattern);
+  if (retainMatch) {
+    return retainMatch[0].trim();
+  }
+  
+  // Last fallback: return first meaningful part
+  return text.substring(0, Math.min(35, text.length)).trim();
+}
+
+/** Extract key license phrase from clause (e.g., "grants Provider a perpetual, irrevocable license") */
+function extractLicensePhrase(text: string): string {
+  // First, try to find "grants" followed by entity and license terms
+  // Pattern: "grants [to] [entity] ... perpetual ... irrevocable ... license"
+  // or "grants [to] [entity] ... irrevocable ... perpetual ... license"
+  const grantPatterns = [
+    /grants?\s+(?:to\s+)?(?:provider|apex|company|party|the\s+provider)\s+[^.]{0,50}?(?:perpetual|irrevocable)[^.]{0,30}?(?:irrevocable|perpetual)[^.]{0,30}?license/i,
+    /grants?\s+(?:to\s+)?(?:provider|apex|company|party|the\s+provider)\s+[^.]{0,50}?(?:irrevocable|perpetual)[^.]{0,30}?(?:perpetual|irrevocable)[^.]{0,30}?license/i
+  ];
+  
+  for (const pattern of grantPatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      let phrase = match[0].trim();
+      // Simplify: extract "grants [entity] a perpetual, irrevocable license" part
+      // Remove extra words in the middle, keep it concise
+      const simplified = phrase.replace(/\s+/g, " "); // Normalize whitespace
+      if (simplified.length > 75) {
+        // Try to extract just the essential parts
+        const essential = simplified.match(/grants?\s+(?:to\s+)?(?:provider|apex|company|party|the\s+provider)\s+(?:a\s+)?(?:perpetual|irrevocable)[^,]{0,20},?\s*(?:irrevocable|perpetual)[^,]{0,20},?\s*license/i);
+        if (essential) {
+          return essential[0].trim();
+        }
+        return simplified.substring(0, 72) + "...";
+      }
+      return simplified;
+    }
+  }
+  
+  // Try "is granted" or "granted" pattern (passive voice)
+  const grantedPattern = /(?:is\s+)?granted\s+(?:an\s+)?(?:irrevocable,?\s+)?perpetual[^.]{0,30}?license/i;
+  const grantedMatch = text.match(grantedPattern);
+  if (grantedMatch) {
+    let phrase = grantedMatch[0].trim();
+    // Try to add entity context if available
+    const entityMatch = text.substring(0, text.indexOf(phrase)).match(/(?:provider|apex|company|party)\s+[^.]{0,20}$/i);
+    if (entityMatch) {
+      phrase = entityMatch[0].trim() + " " + phrase;
+    }
+    if (phrase.length > 65) {
+      phrase = phrase.substring(0, 62) + "...";
+    }
+    return phrase;
+  }
+  
+  // Fallback: look for "perpetual" and "irrevocable" near "license"
+  const simpleMatch = text.match(/(?:perpetual|irrevocable)[^.]{0,25}?(?:irrevocable|perpetual)[^.]{0,25}?license/i);
+  if (simpleMatch) {
+    let phrase = simpleMatch[0].trim();
+    // Try to add "grants" context if available nearby (within 50 chars before)
+    const beforeText = text.substring(Math.max(0, text.indexOf(phrase) - 50), text.indexOf(phrase));
+    const grantContext = beforeText.match(/grants?[^.]{0,30}$/i);
+    if (grantContext) {
+      phrase = grantContext[0].trim() + " " + phrase;
+    }
+    if (phrase.length > 65) {
+      phrase = phrase.substring(0, 62) + "...";
+    }
+    return phrase;
+  }
+  
+  // Last fallback: return a short snippet mentioning license
+  const licenseIndex = text.toLowerCase().indexOf("license");
+  if (licenseIndex > 0 && licenseIndex < 50) {
+    return text.substring(0, Math.min(licenseIndex + 20, text.length)).trim();
+  }
+  return text.substring(0, Math.min(40, text.length)).trim();
+}
+
 export interface ScoringInput {
   renewalClauses: RawRenewalClause[];
   priceEscalators: RawPriceEscalatorClause[];
@@ -237,11 +343,30 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
   if (dataOwnershipClauses.length > 0 && perpetualIrrevocableLicenseClauses.length > 0) {
     const ownershipClause = dataOwnershipClauses[0];
     const licenseClause = perpetualIrrevocableLicenseClauses[0];
+    
+    const ownershipSection = extractSectionReference(ownershipClause);
+    const licenseSection = extractSectionReference(licenseClause);
+    const ownershipPhrase = extractOwnershipPhrase(ownershipClause);
+    const licensePhrase = extractLicensePhrase(licenseClause);
+    
+    // Format: "Section 5.1: Customer retains ownership. Section 5.2: grants Provider a perpetual, irrevocable license."
+    let clauseText = "";
+    if (ownershipSection) {
+      clauseText += `${ownershipSection}: ${ownershipPhrase}. `;
+    } else {
+      clauseText += `Ownership: ${ownershipPhrase}. `;
+    }
+    if (licenseSection) {
+      clauseText += `${licenseSection}: ${licensePhrase}.`;
+    } else {
+      clauseText += `License: ${licensePhrase}.`;
+    }
+    
     issues.push({
       severity: "high",
       reason: "Contract states Customer owns its data but grants Provider a perpetual, irrevocable license over it — these may conflict. Review with counsel.",
       category: "data_ownership",
-      clauseText: `Ownership: "${ownershipClause}" | License: "${licenseClause}"`
+      clauseText: clauseText.trim()
     });
   }
 
