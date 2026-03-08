@@ -13,7 +13,6 @@ interface SectionProps {
   title: string;
   description: string;
   summary: string;
-  variant: "empty" | "info" | "alert";
   isSelected: boolean;
   onSelect: () => void;
 }
@@ -22,13 +21,12 @@ function Section({
   title,
   description,
   summary,
-  variant,
   isSelected,
   onSelect
 }: SectionProps) {
   return (
     <section
-      className={`card result-card result-card--${variant} ${
+      className={`card result-card ${
         isSelected ? "is-selected" : ""
       }`}
     >
@@ -172,7 +170,6 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
             title="Renewal & Term"
             description="Clauses that mention renewal dates, terms, or expiration."
             summary={renewalSummary}
-            variant={renewalClauses.length ? "info" : "empty"}
             isSelected={selectedTile === "renewal"}
             onSelect={() =>
               setSelectedTile((t) => (t === "renewal" ? null : "renewal"))
@@ -182,7 +179,6 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
             title="Price Escalators"
             description="Clauses that mention fee increases, CPI adjustments, or other escalators."
             summary={escalatorSummary}
-            variant={priceEscalators.length ? "info" : "empty"}
             isSelected={selectedTile === "escalators"}
             onSelect={() =>
               setSelectedTile((t) => (t === "escalators" ? null : "escalators"))
@@ -192,7 +188,6 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
             title="Auto-Renewal"
             description="Clauses where the agreement renews automatically unless you take action."
             summary={autoSummary}
-            variant={autoRenewalClauses.length ? "info" : "empty"}
             isSelected={selectedTile === "auto"}
             onSelect={() =>
               setSelectedTile((t) => (t === "auto" ? null : "auto"))
@@ -202,7 +197,6 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
             title="Red Flags & To-Dos"
             description="Prioritized issues by risk. Start with high, then medium."
             summary={issuesSummary}
-            variant={redFlagsIssues.length > 0 ? "alert" : "empty"}
             isSelected={selectedTile === "issues"}
             onSelect={() =>
               setSelectedTile((t) => (t === "issues" ? null : "issues"))
