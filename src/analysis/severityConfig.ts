@@ -345,28 +345,12 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
   // (limited to term/service provision) are not flagged, and the presence of both types
   // doesn't negate the problem of the perpetual irrevocable license.
   if (dataOwnershipClauses.length > 0 && perpetualIrrevocableLicenseClauses.length > 0) {
-    const ownershipClause = dataOwnershipClauses[0];
-    const licenseClause = perpetualIrrevocableLicenseClauses[0];
-    
-    // Ensure clauses are valid strings before processing
-    if (ownershipClause && licenseClause && typeof ownershipClause === 'string' && typeof licenseClause === 'string') {
-      // Truncate clauses to a reasonable length for display (max 150 chars each)
-      // This prevents UI issues while still showing the actual detected clauses
-      const truncateClause = (clause: string, maxLength: number = 150): string => {
-        if (clause.length <= maxLength) return clause;
-        return clause.substring(0, maxLength - 3).trim() + "...";
-      };
-      
-      const ownershipDisplay = truncateClause(ownershipClause);
-      const licenseDisplay = truncateClause(licenseClause);
-      
-      issues.push({
-        severity: "high",
-        reason: "Contract states Customer owns its data but grants Provider a perpetual, irrevocable license over it — these may conflict. Review with counsel.",
-        category: "data_ownership",
-        clauseText: `Ownership clause: ${ownershipDisplay} License clause: ${licenseDisplay}`
-      });
-    }
+    issues.push({
+      severity: "high",
+      reason: "Contract states Customer owns its data but grants Provider a perpetual, irrevocable license over it — these may conflict. Review with counsel.",
+      category: "data_ownership",
+      clauseText: "One clause asserts Customer data ownership. Another grants a perpetual, irrevocable license over it."
+    });
   }
 
   // --- Missing clauses (informational) ---
