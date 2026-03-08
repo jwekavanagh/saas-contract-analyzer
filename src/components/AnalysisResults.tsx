@@ -202,7 +202,7 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
             title="Red Flags & To-Dos"
             description="Prioritized issues by risk. Start with high, then medium."
             summary={issuesSummary}
-            variant={redFlagsIssues.length > 0 ? "alert" : issues.length > 0 ? "info" : "empty"}
+            variant={redFlagsIssues.length > 0 ? "alert" : "empty"}
             isSelected={selectedTile === "issues"}
             onSelect={() =>
               setSelectedTile((t) => (t === "issues" ? null : "issues"))
