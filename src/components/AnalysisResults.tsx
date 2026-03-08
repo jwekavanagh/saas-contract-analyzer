@@ -109,16 +109,15 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
 
   const highCount = issues.filter((i) => i.severity === "high").length;
   const mediumCount = issues.filter((i) => i.severity === "medium").length;
-  const lowCount = issues.filter((i) => i.severity === "low").length;
-  const infoCount = issues.filter((i) => i.severity === "informational").length;
-  const severitySummaryParts: string[] = [];
-  if (highCount) severitySummaryParts.push(`${highCount} high`);
-  if (mediumCount) severitySummaryParts.push(`${mediumCount} medium`);
-  if (lowCount) severitySummaryParts.push(`${lowCount} low`);
-  if (infoCount) severitySummaryParts.push(`${infoCount} informational`);
-  const severityBreakdown = severitySummaryParts.length
-    ? severitySummaryParts.join(" · ")
-    : "No issues flagged.";
+  
+  // Red Flags only shows high and medium severity issues
+  const redFlagsIssues = issues.filter((i) => i.severity === "high" || i.severity === "medium");
+  const redFlagsSummaryParts: string[] = [];
+  if (highCount) redFlagsSummaryParts.push(`${highCount} high`);
+  if (mediumCount) redFlagsSummaryParts.push(`${mediumCount} medium`);
+  const redFlagsBreakdown = redFlagsSummaryParts.length
+    ? redFlagsSummaryParts.join(" · ")
+    : "No high-priority issues detected.";
 
   const renewalSummary = renewalClauses.length
     ? `${renewalClauses.length} renewal-related clause${renewalClauses.length > 1 ? "s" : ""} detected.`
@@ -133,9 +132,9 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
     : "No automatic renewal language clearly detected.";
 
   const issuesSummary =
-    issues.length > 0
-      ? severityBreakdown
-      : "No issues surfaced. Review with counsel for confirmation.";
+    redFlagsIssues.length > 0
+      ? redFlagsBreakdown
+      : "No high-priority issues detected.";
 
   const overallSummaryParts: string[] = [];
   if (renewalClauses.length) {
@@ -153,8 +152,8 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
       `${autoRenewalClauses.length} auto-renewal clause${autoRenewalClauses.length > 1 ? "s" : ""}`
     );
   }
-  if (issues.length) {
-    overallSummaryParts.push(severityBreakdown);
+  if (redFlagsIssues.length > 0) {
+    overallSummaryParts.push(redFlagsBreakdown);
   }
 
   const overallSummary =
@@ -203,7 +202,7 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
             title="Red Flags & To-Dos"
             description="Prioritized issues by risk. Start with high, then medium."
             summary={issuesSummary}
-            variant={highCount > 0 || mediumCount > 0 ? "alert" : issues.length ? "info" : "empty"}
+            variant={redFlagsIssues.length > 0 ? "alert" : "empty"}
             isSelected={selectedTile === "issues"}
             onSelect={() =>
               setSelectedTile((t) => (t === "issues" ? null : "issues"))
@@ -287,13 +286,13 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
             <div className="detail-panel-inner">
               <h3 className="detail-panel-title">Red Flags & To-Dos</h3>
               <p className="detail-panel-heuristic-note">
-                Heuristic engine: {issues.length} issue{issues.length !== 1 ? "s" : ""} flagged.
+                Heuristic engine: {redFlagsIssues.length} actionable issue{redFlagsIssues.length !== 1 ? "s" : ""} flagged (high/medium only).
                 See README for LLM roadmap.
               </p>
               <p className="summary-text">{summary}</p>
-              {issues.length > 0 ? (
+              {redFlagsIssues.length > 0 ? (
                 <ul className="issues-list-by-severity">
-                  {issues.map((issue, idx) => (
+                  {redFlagsIssues.map((issue, idx) => (
                     <li key={idx} className={`issues-list-item issues-list-item--${issue.severity}`}>
                       <SeverityBadge severity={issue.severity} />
                       <div className="issues-list-item-content">
@@ -305,7 +304,9 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
                     </li>
                   ))}
                 </ul>
-              ) : null}
+              ) : (
+                <p className="muted">No high-priority issues detected.</p>
+              )}
             </div>
           )}
         </section>
