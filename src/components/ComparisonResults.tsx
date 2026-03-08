@@ -1,6 +1,8 @@
 import type { ContractComparison, IssueComparison } from "../utils/contractComparison";
 import type { Severity } from "../analysis/severityConfig";
+import type { ContractAnalysis } from "../analysis/contractAnalyzer";
 import { SeverityBadge } from "./AnalysisResults";
+import { RiskScore } from "./RiskScore";
 
 interface ComparisonSectionProps {
   title: string;
@@ -63,7 +65,15 @@ function ComparisonSection({
   );
 }
 
-export function ComparisonResults({ comparison }: { comparison: ContractComparison }) {
+export function ComparisonResults({ 
+  comparison,
+  originalAnalysis,
+  revisedAnalysis
+}: { 
+  comparison: ContractComparison;
+  originalAnalysis: ContractAnalysis;
+  revisedAnalysis: ContractAnalysis;
+}) {
   const { resolved, new: newIssues, unchanged, improved, worsened, summary } = comparison;
 
   const hasChanges =
@@ -96,6 +106,10 @@ export function ComparisonResults({ comparison }: { comparison: ContractComparis
 
   return (
     <div className="results-layout">
+      <div className="risk-score-comparison">
+        <RiskScore analysis={originalAnalysis} label="Original" />
+        <RiskScore analysis={revisedAnalysis} label="Revised" />
+      </div>
       <div className="results-overview-bar">
         <span className="results-overview-label">Comparison Overview</span>
         <p className="results-overview-text">{overviewText}</p>

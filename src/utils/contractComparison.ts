@@ -57,6 +57,8 @@ function areIssuesSimilar(issue1: ScoredIssue, issue2: ScoredIssue): boolean {
     if (longer.includes(shorter) || shorter.length / longer.length > 0.6) {
       return true;
     }
+    // If both have clause text but don't meet similarity threshold, they're not similar
+    return false;
   }
 
   // If only one has clause text, still consider them similar if reason and category match
@@ -89,7 +91,7 @@ export function compareContracts(
     (i) => i.severity === "high" || i.severity === "medium"
   );
 
-  // Track which revised issues have been matched
+  // Track which revised issues have been matched (by index in allRevisedIssues)
   const matchedRevised = new Set<number>();
 
   // For each original high/medium issue, try to find a match in all revised issues
@@ -154,21 +156,82 @@ export function compareContracts(
     }
   }
 
-  // Any revised high/medium issues that weren't matched are new
+  // Any revised high/medium issues that weren't matched need to be checked
+  // They could be: new issues, or escalated from low/informational in original
   for (const revIssue of revisedHighMedium) {
-    let wasInOriginal = false;
+    // Find the index of this issue in allRevisedIssues to check if it was matched
+    const revIssueIndex = allRevisedIssues.findIndex(issue => issue === revIssue);
+    
+    // Skip if already matched in first loop
+    if (revIssueIndex !== -1 && matchedRevised.has(revIssueIndex)) {
+      continue;
+    }
+
+    // Check if this issue existed in the original at any severity
+    let foundInOriginal: ScoredIssue | null = null;
     for (const origIssue of allOriginalIssues) {
       if (areIssuesSimilar(origIssue, revIssue)) {
-        wasInOriginal = true;
+        foundInOriginal = origIssue;
         break;
       }
     }
-    if (!wasInOriginal) {
+
+    if (!foundInOriginal) {
+      // Truly new issue - wasn't in original at all
       newIssues.push({
         issue: revIssue,
         status: "new",
         revisedSeverity: revIssue.severity,
       });
+    } else {
+      // Issue existed in original but at different severity
+      const origSeverity = foundInOriginal.severity;
+      const revSeverity = revIssue.severity;
+
+      // If it was low/informational in original and is now high/medium, it escalated (worsened)
+      if ((origSeverity === "low" || origSeverity === "informational") && 
+          (revSeverity === "high" || revSeverity === "medium")) {
+        worsened.push({
+          issue: revIssue,
+          status: "worsened",
+          originalSeverity: origSeverity,
+          revisedSeverity: revSeverity,
+        });
+      } else if ((origSeverity === "high" || origSeverity === "medium") && 
+                 (revSeverity === "high" || revSeverity === "medium")) {
+        // Both are high/medium - this should have been caught in first loop, but handle it anyway
+        // Check if severity changed
+        if (origSeverity === revSeverity) {
+          unchanged.push({
+            issue: revIssue,
+            status: "unchanged",
+            originalSeverity: origSeverity,
+            revisedSeverity: revSeverity,
+          });
+        } else {
+          // Severity changed between high and medium
+          const origIndex = SEVERITY_ORDER.indexOf(origSeverity);
+          const revIndex = SEVERITY_ORDER.indexOf(revSeverity);
+
+          if (revIndex > origIndex) {
+            // Severity decreased (e.g., high -> medium) = improved
+            improved.push({
+              issue: revIssue,
+              status: "improved",
+              originalSeverity: origSeverity,
+              revisedSeverity: revSeverity,
+            });
+          } else {
+            // Severity increased (e.g., medium -> high) = worsened
+            worsened.push({
+              issue: revIssue,
+              status: "worsened",
+              originalSeverity: origSeverity,
+              revisedSeverity: revSeverity,
+            });
+          }
+        }
+      }
     }
   }
 

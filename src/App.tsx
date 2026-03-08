@@ -45,6 +45,8 @@ function App() {
   const [revisedText, setRevisedText] = useState("");
   const [analysis, setAnalysis] = useState<ContractAnalysis | null>(null);
   const [comparison, setComparison] = useState<ReturnType<typeof compareContracts> | null>(null);
+  const [originalAnalysis, setOriginalAnalysis] = useState<ContractAnalysis | null>(null);
+  const [revisedAnalysis, setRevisedAnalysis] = useState<ContractAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -118,9 +120,11 @@ function App() {
       setIsAnalyzing(true);
 
       try {
-        const originalAnalysis = analyzeContract(original);
-        const revisedAnalysis = analyzeContract(revised);
-        const comparisonResult = compareContracts(originalAnalysis, revisedAnalysis);
+        const origAnalysis = analyzeContract(original);
+        const revAnalysis = analyzeContract(revised);
+        const comparisonResult = compareContracts(origAnalysis, revAnalysis);
+        setOriginalAnalysis(origAnalysis);
+        setRevisedAnalysis(revAnalysis);
         setComparison(comparisonResult);
         setAnalysis(null);
       } catch (e) {
@@ -271,8 +275,12 @@ function App() {
         </section>
 
         <section className="results-panel">
-          {comparison ? (
-            <ComparisonResults comparison={comparison} />
+          {comparison && originalAnalysis && revisedAnalysis ? (
+            <ComparisonResults 
+              comparison={comparison} 
+              originalAnalysis={originalAnalysis}
+              revisedAnalysis={revisedAnalysis}
+            />
           ) : analysis ? (
             <AnalysisResults analysis={analysis} />
           ) : (

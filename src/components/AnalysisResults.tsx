@@ -8,6 +8,7 @@ import type {
 import type { Severity } from "../analysis/severityConfig";
 import { generatePlaybook } from "../utils/playbookGenerator";
 import { NegotiationPlaybook } from "./NegotiationPlaybook";
+import { RiskScore } from "./RiskScore";
 
 type SelectedTile = "renewal" | "escalators" | "auto" | "issues" | null;
 
@@ -164,6 +165,7 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
 
   return (
     <div className="results-layout">
+      <RiskScore analysis={analysis} />
       <div className="results-overview-bar">
         <span className="results-overview-label">Overview</span>
         <p className="results-overview-text">{overallSummary}</p>
