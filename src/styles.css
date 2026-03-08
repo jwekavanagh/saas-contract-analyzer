@@ -343,6 +343,7 @@ body {
   flex-direction: column;
   gap: 12px;
   height: 100%;
+  cursor: pointer;
 }
 
 .card-header-content-row {
@@ -375,35 +376,13 @@ body {
   text-align: right;
 }
 
-.card-chevron {
-  font-size: 0.9rem;
-  color: var(--accent-stronger);
-}
-
-.card-toggle-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.7);
-  background: rgba(15, 23, 42, 0.85);
-  font-size: 0.78rem;
-}
-
-.card-toggle-text {
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 0.7rem;
-  color: rgba(226, 232, 240, 0.9);
-}
-
 .result-card:hover {
   border-color: var(--accent-strong);
   box-shadow:
-    0 18px 40px rgba(8, 47, 73, 0.85),
-    0 0 0 1px rgba(56, 189, 248, 0.5);
-  transform: translateY(-1px);
+    0 20px 45px rgba(8, 47, 73, 0.9),
+    0 0 0 1px rgba(56, 189, 248, 0.6);
+  transform: translateY(-3px);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
 }
 
 .result-card.is-selected {

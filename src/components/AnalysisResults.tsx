@@ -51,10 +51,6 @@ function Section({
           </div>
           <div className="card-summary-row">
             <p className="card-summary-text">{summary}</p>
-            <div className="card-toggle-hint">
-              <span className="card-toggle-text">Show details</span>
-              <span className="card-chevron" aria-hidden="true">+</span>
-            </div>
           </div>
         </div>
       </header>
