@@ -1,58 +1,51 @@
 # Redline
 
-AI-powered tool for reviewing SaaS contracts. Paste raw contract text and the app flags renewal traps, price escalators, and other negotiation risks, then **scores them by severity** so you can focus on the worst items first.
+AI-powered SaaS contract analyzer. Paste contract text or upload a PDF, get a risk grade, prioritized flags with market benchmarks, and a negotiation playbook — all in the browser.
 
-## What it does
+## Features
 
-- Parses contract text into individual clauses
-- Detects **renewal terms** and auto-renewal mechanics
-- Flags **price escalator** language and fee increase triggers
-- **Detects data ownership contradictions** (e.g., Customer owns data but grants perpetual irrevocable license)
-- Extracts key metadata: notice periods, term lengths, percentages
-- **Scores each finding by severity** (high / medium / low / informational) with a plain-language reason
-- Surfaces a **prioritized** Red Flags list and severity breakdown in the overview
+- **Risk grade** (A–F) at the top of every analysis — instantly communicates overall contract risk
+- **Severity scoring** — every detected issue tagged as high, medium, low, or informational with a plain-language reason
+- **Market benchmarks** inline with flags — "120-day notice period. Market standard: 30-60 days."
+- **Negotiation playbook** — one click generates a structured brief with counter-positions grouped by "Must address before signing" and "Worth negotiating"
+- **Contract comparison** — paste original and revised versions side by side, see what improved (Resolved), what got worse (New risks), and what's unchanged, with a grade for each version
+- **PDF upload** — drag and drop or click to upload, text extracted in-browser via pdf.js
+- **Data ownership contradiction detection** — flags when a contract asserts Customer owns data but grants Provider a perpetual irrevocable license over it
+- **Light / dark mode** — respects OS preference, toggleable
+- **Zero data transmission** — everything runs client-side, nothing leaves the browser
 
 ## How it works
 
-React + Vite + TypeScript app. Analysis runs entirely in the browser. No data leaves the browser.
+React + Vite + TypeScript. No backend.
 
-1. **Detection**: `src/analysis/contractAnalyzer.ts` uses heuristic pattern matching to find renewal, auto-renewal, price escalator, termination-related language, and data ownership contradictions.
-2. **Scoring**: `src/analysis/severityConfig.ts` assigns a severity level and reason to each finding. Rules and thresholds (e.g. >60 days notice = high, uncapped escalator = high, data ownership contradiction = high) live in this config so they can be tuned without touching detection logic.
-3. **UI**: The **Red Flags & To-Dos** section is the primary action surface: issues are sorted high → medium → low → informational, each with a severity badge and reason. The overview bar shows a severity breakdown (e.g. "2 high · 1 medium · 1 low"). Category detail views show a severity badge on each clause.
+1. **Detection** (`src/analysis/contractAnalyzer.ts`): heuristic pattern matching finds renewal, auto-renewal, price escalator, termination, and data ownership contradiction clauses.
+2. **Scoring** (`src/analysis/severityConfig.ts`): assigns severity and reason to each finding. Thresholds (>60 days notice = high, uncapped escalator = high, data ownership contradiction = high) live in config, separate from detection logic.
+3. **UI**: Red Flags shows only high and medium issues. Category cards show all detections. The negotiation playbook maps each flag to a specific counter-position.
 
-The architecture is designed so the heuristic engine can be swapped or augmented with an LLM-based analyzer for deeper clause-level reasoning.
+The architecture is designed so the heuristic engine can be swapped for an LLM-based analyzer.
 
 ## Testing & gap analysis
 
-To stress-test the tool, I generated a realistic 11-section SaaS master agreement with **20+ deliberately seeded issues** spanning:
+To stress-test the tool, I generated two realistic SaaS master agreements with **20+ deliberately seeded issues** spanning commercial/financial, data & privacy, asymmetry, operational/SLA, and legal/structural categories.
 
-| Category | Example issues seeded |
-|---|---|
-| **Commercial / Financial** | Uncapped price increases, 3-month liability cap (vs. 12-month standard), "whichever is higher" interest clause, no refund on early termination |
-| **Data & Privacy** | Perpetual irrevocable license to customer data contradicting ownership clause, vague breach notification timeline, 7-day data retrieval window, unrestricted cross-border data transfer |
-| **Asymmetry** | One-sided indemnification, provider-only termination for convenience, provider-only assignment rights, liability cap carve-outs only benefiting provider |
-| **Operational / SLA** | Unlimited maintenance exclusions from uptime calculations, 15% SLA credit cap, no severity-tiered support, revocable license grant |
-| **Legal / Structural** | Unilateral amendment via website posting, mandatory arbitration with no carve-outs, 1-year confidentiality tail, force majeure covering cloud infrastructure failures |
+### What Redline catches
 
-### Current detection and severity
+- Auto-renewal with aggressive notice periods (>60 days → high)
+- Uncapped or high-percentage price escalators (>10% → high)
+- One-sided termination for convenience
+- Missing termination for convenience language
+- Data ownership contradictions (ownership assertion + perpetual irrevocable license)
+- Negation-aware cap detection ("without cap" correctly treated as uncapped)
 
-The analyzer detects renewal, auto-renewal, price escalator, and data ownership contradiction clauses and scores them by risk. For example:
+### What it doesn't catch yet
 
-- **High**: e.g. auto-renewal notice >60 days, uncapped or >10% price increases, customer must give >60 days to terminate, one-sided termination for convenience, **data ownership contradiction** (Customer owns data but grants perpetual irrevocable license)
-- **Medium**: e.g. 31–60 day notice, escalators capped 5–10%, no termination-for-convenience language
-- **Low**: e.g. ≤30 day notice, CPI-linked escalator with ≤5% cap
-- **Informational**: detected but no rule match, or missing-clause notes
-
-The built-in sample contract triggers at least one high and one medium issue so you can see prioritization on first use.
-
-It does not yet surface all deeper red flags: asymmetric obligations, below-market terms, or regulatory risk. That is the expected gap for a heuristic approach and the motivation for moving to LLM-based analysis.
+Asymmetric indemnification, below-market liability caps, vague breach notification timelines, overbroad force majeure, unilateral amendment clauses, and other issues requiring semantic understanding or cross-clause reasoning beyond pattern matching.
 
 ### Planned improvements
 
-- **Clause asymmetry detection**: identify who bears the obligation vs. who benefits in each clause
-- **Additional contradiction detection**: expand beyond data ownership to other contradictory clause patterns
-- **Market benchmarking**: compare specific terms (liability caps, notice periods, data retrieval windows) against industry norms
-- **LLM integration**: replace or augment the heuristic engine with an API call for deeper reasoning
+- Clause asymmetry detection
+- Additional contradiction patterns beyond data ownership
+- LLM integration for deeper reasoning
 
 ## Getting started
 
@@ -61,41 +54,23 @@ npm install
 npm run dev
 ```
 
-Then open the local URL (typically `http://localhost:5173`).
+Opens at `http://localhost:5173`.
 
 ## Testing
 
-### Automated Tests
-
 ```bash
-# Run all tests
-npm run test
-
-# Run tests once (CI mode)
-npm run test:run
-
-# Run tests with UI
-npm run test:ui
+npm run test        # watch mode
+npm run test:run    # CI mode
+npm run test:ui     # with UI
 ```
 
-### Manual Browser Testing
-
-See `BROWSER-TEST-CHECKLIST.md` for step-by-step manual testing instructions.
-
-### Test Coverage
-
-- ✅ 20+ automated unit tests
-- ✅ 12+ browser test cases
-- ✅ Edge case coverage (alternative phrasing, multiple clauses, etc.)
-- ✅ Integration tests with other features
-
-See `TESTING-GUIDE.md` for complete testing documentation.
+40 automated tests covering detection, scoring, edge cases, and integration.
 
 ## Built with
 
 - React + TypeScript + Vite
 - [Cursor](https://cursor.sh) (AI-assisted development)
-- [Claude](https://claude.ai) (test contract generation, gap analysis, and roadmap)
+- [Claude](https://claude.ai) (test contract generation, requirements, gap analysis, roadmap)
 
 ## Disclaimer
 

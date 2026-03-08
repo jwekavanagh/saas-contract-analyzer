@@ -18,7 +18,7 @@ Customer may terminate this Agreement for convenience during any Renewal Term up
 
 // Sample contracts for comparison mode - designed to show clear improvement
 // Original: 120-day notice (HIGH), uncapped 12% escalator (HIGH), no termination for convenience (MEDIUM) = D grade
-const SAMPLE_ORIGINAL_CONTRACT = `This Software as a Service Subscription Agreement (the "Agreement") is entered into as of January 1, 2026 (the "Effective Date") for an initial term of one (1) year (the "Initial Term").
+const SAMPLE_ORIGINAL_CONTRACT = `This Software as a Service Subscription Agreement (the "Agreement") is entered into as of January 1, 2026 (the "Effective Date") between the Customer and the Provider (collectively, the "Parties") for an initial term of one (1) year (the "Initial Term").
 
 Following the Initial Term, this Agreement shall automatically renew for successive one (1) year periods (each, a "Renewal Term") unless either party provides written notice of non-renewal at least one hundred twenty (120) days prior to the end of the then-current term.
 
@@ -27,7 +27,7 @@ The Subscription Fees for the Initial Term are set forth in the Order Form. For 
 Either party may terminate this Agreement for cause upon thirty (30) days' written notice if the other party materially breaches this Agreement and fails to cure such breach within such thirty (30) day period.`;
 
 // Revised: 30-day notice (LOW - resolved), 5% capped escalator (LOW - resolved), no termination for convenience (MEDIUM - unchanged) = B grade
-const SAMPLE_REVISED_CONTRACT = `This Software as a Service Subscription Agreement (the "Agreement") is entered into as of January 1, 2026 (the "Effective Date") for an initial term of one (1) year (the "Initial Term").
+const SAMPLE_REVISED_CONTRACT = `This Software as a Service Subscription Agreement (the "Agreement") is entered into as of January 1, 2026 (the "Effective Date") between the Customer and the Provider (collectively, the "Parties") for an initial term of one (1) year (the "Initial Term").
 
 Following the Initial Term, this Agreement shall automatically renew for successive one (1) year periods (each, a "Renewal Term") unless either party provides written notice of non-renewal at least thirty (30) days prior to the end of the then-current term.
 
