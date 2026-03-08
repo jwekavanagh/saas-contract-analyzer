@@ -296,18 +296,48 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
     // Extract cap value if present (e.g., "not to exceed 8%") for display purposes only
     let capPct: number | null = null;
     if (hasCap) {
-      const capMatch = c.sentence.match(/(?:not\s+to\s+exceed|ceiling|maximum|cap\s+of|not\s+exceed)\s+(\d{1,2}(?:\.\d+)?)\s*%/i);
+      // First, try to match explicit cap patterns including "capped at"
+      const capMatch = c.sentence.match(/(?:not\s+to\s+exceed|ceiling|maximum|cap\s+of|capped\s+at|not\s+exceed)\s+(\d{1,2}(?:\.\d+)?)\s*%/i);
       if (capMatch) {
         capPct = parsePercent(capMatch[1] + "%");
       }
-      // If no explicit cap value found, look for the highest percentage in the sentence
+      // If no explicit cap value found, look for percentage that appears near cap keywords
+      // This avoids incorrectly picking the base escalation rate when it's higher than the cap
       if (capPct == null) {
-        const allPercents = c.sentence.match(/\b(\d{1,2}(?:\.\d+)?)\s*%/g);
-        if (allPercents && allPercents.length > 0) {
-          const parsedPercents = allPercents.map(p => parsePercent(p)).filter(p => p != null) as number[];
-          if (parsedPercents.length > 0) {
-            capPct = Math.max(...parsedPercents);
+        // Find all cap-related keyword positions
+        const capKeywords = /\b(?:cap|capped|ceiling|maximum|exceed|limit)\b/gi;
+        const capKeywordPositions: number[] = [];
+        let keywordMatch;
+        while ((keywordMatch = capKeywords.exec(c.sentence)) !== null) {
+          capKeywordPositions.push(keywordMatch.index);
+        }
+        
+        // Find all percentage matches with their positions
+        const percentPattern = /\b(\d{1,2}(?:\.\d+)?)\s*%/g;
+        const percentMatches: Array<{ value: string; position: number; parsed: number }> = [];
+        let percentMatch;
+        while ((percentMatch = percentPattern.exec(c.sentence)) !== null) {
+          const parsed = parsePercent(percentMatch[0]);
+          if (parsed != null && percentMatch.index !== undefined) {
+            percentMatches.push({
+              value: percentMatch[0],
+              position: percentMatch.index,
+              parsed
+            });
           }
+        }
+        
+        // Find percentages that appear near cap keywords (within 30 characters)
+        const capPercentages = percentMatches
+          .filter(pm => capKeywordPositions.some(keywordPos => 
+            Math.abs(pm.position - keywordPos) <= 30
+          ))
+          .map(pm => pm.parsed);
+        
+        // If we found percentages near cap keywords, use the smallest one (the cap is usually the limit)
+        // If no percentages near cap keywords, don't guess - leave capPct as null
+        if (capPercentages.length > 0) {
+          capPct = Math.min(...capPercentages);
         }
       }
     }
@@ -327,7 +357,7 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
     } else if (effectivePct != null && effectivePct >= ESCALATOR_PCT_MEDIUM && effectivePct <= ESCALATOR_PCT_HIGH) {
       severity = "medium";
       reason = `Escalator of ${c.percentage}${capPct != null ? ` (capped at ${capPct}%)` : ""} — reasonable but worth negotiating. Market standard: 3-5% or CPI-linked.`;
-    } else if (hasCap && (isCpi || (effectivePct != null && effectivePct <= ESCALATOR_PCT_MEDIUM))) {
+    } else if (hasCap && (isCpi || (effectivePct != null && effectivePct < ESCALATOR_PCT_MEDIUM))) {
       severity = "low";
       reason = isCpi ? "CPI-linked with a cap — standard. Market standard: 3-5% or CPI-linked." : `Escalator of ${c.percentage}${capPct != null ? ` (capped at ${capPct}%)` : ""} — low risk. Market standard: 3-5% or CPI-linked.`;
     }

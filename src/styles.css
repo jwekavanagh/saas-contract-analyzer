@@ -677,14 +677,15 @@ body.dark .severity-badge--informational {
   gap: 4px;
   padding: 3px 8px;
   border-radius: 999px;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-strong);
-  color: var(--accent);
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-soft);
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 body.light .tag {
-  color: var(--accent-stronger);
+  background: rgba(148, 163, 184, 0.06);
+  color: var(--text-soft);
 }
 
 .issues-list {
