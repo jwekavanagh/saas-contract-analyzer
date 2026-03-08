@@ -86,10 +86,6 @@ function App() {
       <header className="app-header">
         <div>
           <h1>Redline</h1>
-          <p className="subtitle">
-            Paste a SaaS or commercial contract and let the analyzer surface key
-            renewal terms, price escalators, and auto-renewal traps.
-          </p>
         </div>
         <div className="header-badge">
           <span>AI-assisted review (non-legal advice)</span>
