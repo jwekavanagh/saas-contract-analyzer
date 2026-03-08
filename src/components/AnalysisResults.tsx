@@ -285,10 +285,6 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
           ) : (
             <div className="detail-panel-inner">
               <h3 className="detail-panel-title">Red Flags & To-Dos</h3>
-              <p className="detail-panel-heuristic-note">
-                Heuristic engine: {redFlagsIssues.length} actionable issue{redFlagsIssues.length !== 1 ? "s" : ""} flagged (high/medium only).
-                See README for LLM roadmap.
-              </p>
               <p className="summary-text">{summary}</p>
               {redFlagsIssues.length > 0 ? (
                 <ul className="issues-list-by-severity">
