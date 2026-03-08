@@ -395,12 +395,8 @@ function hasDataOwnershipLanguage(sentence: string): boolean {
     /(owns?|ownership).*(customer|customer's|its)\s+(data|information|content)/i
   ];
   
-  // Also check for negative cases - provider ownership
-  const providerOwnershipPattern = /provider.*(owns?|ownership|retains?\s+ownership)/i;
-  if (providerOwnershipPattern.test(sentence)) {
-    // If provider owns, this is not customer ownership
-    return false;
-  }
+  // Note: Provider ownership is already checked at the beginning of the function,
+  // so we don't need to check again here.
   
   // If we have customer ownership patterns, it's likely customer ownership
   return customerOwnershipPatterns.some(pattern => pattern.test(sentence));
