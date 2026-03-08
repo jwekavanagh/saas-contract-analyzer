@@ -202,7 +202,7 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
             title="Red Flags & To-Dos"
             description="Prioritized issues by risk. Start with high, then medium."
             summary={issuesSummary}
-            variant={redFlagsIssues.length > 0 ? "alert" : "empty"}
+            variant={redFlagsIssues.length > 0 ? "alert" : issues.length > 0 ? "info" : "empty"}
             isSelected={selectedTile === "issues"}
             onSelect={() =>
               setSelectedTile((t) => (t === "issues" ? null : "issues"))
@@ -285,7 +285,11 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
           ) : (
             <div className="detail-panel-inner">
               <h3 className="detail-panel-title">Red Flags & To-Dos</h3>
-              <p className="summary-text">{summary}</p>
+              <p className="summary-text">
+                {redFlagsIssues.length > 0
+                  ? `Found ${redFlagsIssues.length} high-priority issue${redFlagsIssues.length !== 1 ? "s" : ""} requiring attention (${highCount} high severity, ${mediumCount} medium severity). Review each item below and address them before signing.`
+                  : "No high-priority issues detected. The contract appears to have no critical red flags, but you should still review it with legal counsel."}
+              </p>
               {redFlagsIssues.length > 0 ? (
                 <ul className="issues-list-by-severity">
                   {redFlagsIssues.map((issue, idx) => (
