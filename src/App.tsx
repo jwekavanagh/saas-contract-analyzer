@@ -16,6 +16,25 @@ Either party may terminate this Agreement for cause upon thirty (30) days' writt
 
 Customer may terminate this Agreement for convenience during any Renewal Term upon ninety (90) days' prior written notice, effective at the end of the then-current Renewal Term.`;
 
+// Sample contracts for comparison mode - designed to show clear improvement
+// Original: 120-day notice (HIGH), uncapped 12% escalator (HIGH), no termination for convenience (MEDIUM) = D grade
+const SAMPLE_ORIGINAL_CONTRACT = `This Software as a Service Subscription Agreement (the "Agreement") is entered into as of January 1, 2026 (the "Effective Date") for an initial term of one (1) year (the "Initial Term").
+
+Following the Initial Term, this Agreement shall automatically renew for successive one (1) year periods (each, a "Renewal Term") unless either party provides written notice of non-renewal at least one hundred twenty (120) days prior to the end of the then-current term.
+
+The Subscription Fees for the Initial Term are set forth in the Order Form. For each Renewal Term, Provider may increase the Subscription Fees by up to twelve percent (12%) per year without any cap or maximum limit.
+
+Either party may terminate this Agreement for cause upon thirty (30) days' written notice if the other party materially breaches this Agreement and fails to cure such breach within such thirty (30) day period.`;
+
+// Revised: 30-day notice (LOW - resolved), 5% capped escalator (LOW - resolved), no termination for convenience (MEDIUM - unchanged) = B grade
+const SAMPLE_REVISED_CONTRACT = `This Software as a Service Subscription Agreement (the "Agreement") is entered into as of January 1, 2026 (the "Effective Date") for an initial term of one (1) year (the "Initial Term").
+
+Following the Initial Term, this Agreement shall automatically renew for successive one (1) year periods (each, a "Renewal Term") unless either party provides written notice of non-renewal at least thirty (30) days prior to the end of the then-current term.
+
+The Subscription Fees for the Initial Term are set forth in the Order Form. For each Renewal Term, Provider may increase the Subscription Fees by up to five percent (5%) per year, not to exceed five percent (5%) in any Renewal Term.
+
+Either party may terminate this Agreement for cause upon thirty (30) days' written notice if the other party materially breaches this Agreement and fails to cure such breach within such thirty (30) day period.`;
+
 function looksLikeContract(text: string): boolean {
   const normalized = text.toLowerCase();
   const lengthOk = text.length > 120;
@@ -143,13 +162,8 @@ function App() {
       setAnalysis(null);
       setError(null);
     } else {
-      setOriginalText(SAMPLE_CONTRACT);
-      // Create a modified version for comparison
-      const modifiedSample = SAMPLE_CONTRACT.replace(
-        "sixty (60) days",
-        "thirty (30) days"
-      ).replace("eight percent (8%)", "five percent (5%)");
-      setRevisedText(modifiedSample);
+      setOriginalText(SAMPLE_ORIGINAL_CONTRACT);
+      setRevisedText(SAMPLE_REVISED_CONTRACT);
       setComparison(null);
       setError(null);
     }
