@@ -187,10 +187,11 @@ function extractLicensePhrase(text: string): string {
   // Try "is granted" or "granted" pattern (passive voice)
   const grantedPattern = /(?:is\s+)?granted\s+(?:an\s+)?(?:irrevocable,?\s+)?perpetual[^.]{0,30}?license/i;
   const grantedMatch = text.match(grantedPattern);
-  if (grantedMatch) {
+  if (grantedMatch && grantedMatch.index !== undefined) {
     let phrase = grantedMatch[0].trim();
     // Try to add entity context if available
-    const entityMatch = text.substring(0, text.indexOf(phrase)).match(/(?:provider|apex|company|party)\s+[^.]{0,20}$/i);
+    const beforeMatch = text.substring(Math.max(0, grantedMatch.index - 30), grantedMatch.index);
+    const entityMatch = beforeMatch.match(/(?:provider|apex|company|party)\s+[^.]{0,20}$/i);
     if (entityMatch) {
       phrase = entityMatch[0].trim() + " " + phrase;
     }
@@ -202,10 +203,10 @@ function extractLicensePhrase(text: string): string {
   
   // Fallback: look for "perpetual" and "irrevocable" near "license"
   const simpleMatch = text.match(/(?:perpetual|irrevocable)[^.]{0,25}?(?:irrevocable|perpetual)[^.]{0,25}?license/i);
-  if (simpleMatch) {
+  if (simpleMatch && simpleMatch.index !== undefined) {
     let phrase = simpleMatch[0].trim();
     // Try to add "grants" context if available nearby (within 50 chars before)
-    const beforeText = text.substring(Math.max(0, text.indexOf(phrase) - 50), text.indexOf(phrase));
+    const beforeText = text.substring(Math.max(0, simpleMatch.index - 50), simpleMatch.index);
     const grantContext = beforeText.match(/grants?[^.]{0,30}$/i);
     if (grantContext) {
       phrase = grantContext[0].trim() + " " + phrase;
