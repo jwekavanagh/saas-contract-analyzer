@@ -456,7 +456,8 @@ function hasDataOwnershipLanguage(sentence: string): boolean {
 
 /**
  * Detects if a sentence contains a perpetual, irrevocable license to customer data
- * Returns true only if both "perpetual" and "irrevocable" are present
+ * Returns true only if both "perpetual" and "irrevocable" are present AND
+ * the license is specifically to Customer Data (not software, IP, materials, etc.)
  */
 function hasPerpetualIrrevocableLicense(sentence: string): boolean {
   const lowered = sentence.toLowerCase();
@@ -507,41 +508,86 @@ function hasPerpetualIrrevocableLicense(sentence: string): boolean {
                              lowered.includes("rights") ||
                              lowered.includes("licenses");
   
-  // Must explicitly mention data, information, content, or customer context
-  // This prevents false positives from licenses to other materials (software, IP, etc.)
-  const hasDataReference = lowered.includes("data") || 
-                          lowered.includes("information") || 
-                          lowered.includes("content") ||
-                          lowered.includes("customer data") ||
-                          lowered.includes("customer's data") ||
-                          lowered.includes("customer information");
-  
-  // Check for customer context - if license is granted BY customer or TO customer data
-  // Only match if data is explicitly mentioned to avoid false positives on non-data licenses
-  const hasCustomerContext = lowered.includes("customer") && (
-    lowered.includes("customer data") ||
-    lowered.includes("customer's data") ||
-    lowered.includes("customer information") ||
-    // Customer grants...data (requires data/information/content in the grant context)
-    /customer.*grant.*(data|information|content)/i.test(sentence) ||
-    // ...grants to customer data (requires data/information/content in the grant context)
-    /grant.*customer.*(data|information|content)/i.test(sentence)
-  );
-  
-  // Explicitly exclude licenses to non-data materials (software, IP, materials, etc.)
-  // Check if the license is specifically TO non-data items (software, IP, materials, etc.)
-  // and does NOT mention data/information/content
-  if (!hasDataReference && !hasCustomerContext) {
-    // Check if license is to non-data items
-    const licenseToNonData = /\b(?:license|grant|right).*?(?:to|of|for|over|in|use|access).*?\b(?:software|intellectual\s+property|ip\b|materials|works|products|services|technology|code|source\s+code|proprietary\s+information|trade\s+secrets)\b/i.test(sentence);
-    if (licenseToNonData) {
-      return false;
-    }
+  if (!hasLicenseLanguage) {
+    return false;
   }
   
-  // Require explicit data reference OR customer context
-  // Do NOT match licenses to other materials (software, IP, etc.) even if provider is mentioned
-  return hasLicenseLanguage && (hasDataReference || hasCustomerContext);
+  // FIRST: Explicitly exclude licenses to non-data materials (software, IP, materials, documentation, service)
+  // These are standard grant-back clauses, not data ownership issues
+  // Check if the license is specifically TO non-data items
+  // We need to check what the license/grant/right is TO - if it's to software/IP/materials/etc., exclude it
+  
+  // Pattern 1: "license/grant/right to [non-data item]"
+  // Matches: "license to software", "grant to intellectual property", "right to materials"
+  const licenseToNonDataPattern1 = /\b(?:license|grant|right|rights|licenses)\s+(?:to|of|for|over|in)\s+(?:all\s+)?(?:the\s+)?(?:software|intellectual\s+property|ip\b|materials|works|products|services|technology|code|source\s+code|proprietary\s+information|trade\s+secrets|documentation|documents|service)/i;
+  
+  // Pattern 2: "license/grant/right to use [non-data item]"
+  // Matches: "license to use the software", "grant to use intellectual property"
+  const licenseToNonDataPattern2 = /\b(?:license|grant|right|rights|licenses)\s+(?:to|of|for|over|in)\s+(?:use|access|utilize)\s+(?:the\s+)?(?:software|intellectual\s+property|ip\b|materials|technology|code|source\s+code|documentation|service)/i;
+  
+  // Pattern 3: "license/grant/right to [entity]'s [non-data item]"
+  // Matches: "license to Provider's intellectual property", "grant to Licensor's software"
+  const licenseToNonDataPattern3 = /\b(?:license|grant|right|rights|licenses)\s+(?:to|of|for|over|in)\s+(?:provider|licensor|company|party)[\'s]?\s+(?:own\s+)?(?:intellectual\s+property|ip\b|software|technology|materials|code|source\s+code)/i;
+  
+  // Pattern 4: "is granted [a/an] license to [non-data item]"
+  // Matches: "is granted a license to the software", "is granted an irrevocable license to intellectual property"
+  const licenseToNonDataPattern4 = /(?:is\s+)?granted\s+(?:an?\s+)?(?:perpetual|irrevocable|non-exclusive|exclusive)?\s*(?:perpetual|irrevocable)?\s*(?:license|grant|right|rights)\s+(?:to|of|for|over|in)\s+(?:all\s+)?(?:the\s+)?(?:software|intellectual\s+property|ip\b|materials|works|products|services|technology|code|source\s+code|proprietary\s+information|trade\s+secrets|documentation|documents|service)/i;
+  
+  if (licenseToNonDataPattern1.test(sentence) || 
+      licenseToNonDataPattern2.test(sentence) || 
+      licenseToNonDataPattern3.test(sentence) ||
+      licenseToNonDataPattern4.test(sentence)) {
+    return false;
+  }
+  
+  // SECOND: Check if the license is specifically TO Customer Data
+  // Must have explicit reference to customer data, data submitted by customer, or similar
+  // The license must be TO customer data, not just mention both "license" and "data" separately
+  
+  // Pattern 1: Direct references to customer data in the license context
+  // Matches: "license to Customer data", "grant to Customer's data", "right to all Customer data"
+  const customerDataPattern1 = /\b(?:license|grant|right|rights|licenses)\s+(?:to|for|over|in|to\s+use|to\s+access|to\s+process)\s+.*?(?:customer|customer's|the\s+customer's)\s+(?:data|information|content)/i;
+  
+  // Pattern 2: "all Customer data" or "Customer data" after license language
+  // Matches: "license ... all Customer data", "granted ... Customer data"
+  const customerDataPattern2 = /(?:license|grant|right|rights|licenses|granted).*?(?:all\s+)?(?:customer|customer's|the\s+customer's)\s+(?:data|information|content)/i;
+  
+  // Pattern 3: Customer grants...data
+  // Matches: "Customer grants Provider ... data", "Customer hereby grants ... Customer data"
+  const customerDataPattern3 = /customer.*grant.*(?:customer|customer's|the\s+customer's)?.*?(?:data|information|content)/i;
+  
+  // Pattern 4: Data submitted by customer
+  // Matches: "license to data submitted by Customer", "grant to data provided by Customer"
+  const customerDataPattern4 = /(?:license|grant|right|rights|licenses)\s+(?:to|for|over|in)\s+.*?data\s+(?:submitted|provided|uploaded|furnished|supplied)\s+(?:by|to)\s+(?:customer|the\s+customer)/i;
+  
+  // Pattern 5: "such data" when in context of customer data (handled by checking full contract context)
+  // For now, we'll be conservative and require explicit customer data reference
+  const customerDataPattern5 = /(?:license|grant|right|rights|licenses)\s+(?:to|for|over|in)\s+such\s+(?:data|information|content)/i;
+  
+  // Pattern 6: "all data" when it's clear from context it's customer data
+  // Matches: "license to all data" when customer is mentioned nearby
+  const customerDataPattern6 = /\b(?:license|grant|right|rights|licenses)\s+(?:to|for|over|in)\s+all\s+(?:data|information|content)(?:\s+(?:submitted|provided|uploaded|furnished|supplied)\s+(?:by|to)\s+(?:customer|the\s+customer))?/i;
+  
+  // Check if any customer data pattern matches
+  const isLicenseToCustomerData = customerDataPattern1.test(sentence) ||
+                                   customerDataPattern2.test(sentence) ||
+                                   customerDataPattern3.test(sentence) ||
+                                   customerDataPattern4.test(sentence) ||
+                                   (customerDataPattern5.test(sentence) && lowered.includes("customer")) ||
+                                   (customerDataPattern6.test(sentence) && lowered.includes("customer"));
+  
+  if (!isLicenseToCustomerData) {
+    return false;
+  }
+  
+  // Final check: Make sure we're not matching a license FROM customer TO provider's own data
+  // Exclude patterns like "Customer grants Provider license to Provider's own data"
+  const providerOwnDataPattern = /(?:license|grant|right|rights|licenses)\s+(?:to|for|over|in)\s+(?:provider|licensor)[\'s]?\s+(?:own\s+)?(?:data|information|content)/i;
+  if (providerOwnDataPattern.test(sentence)) {
+    return false;
+  }
+  
+  return true;
 }
 
 /**
