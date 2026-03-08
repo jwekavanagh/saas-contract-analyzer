@@ -1,4 +1,4 @@
-# SaaS Contract Analyzer
+# Redline
 
 AI-powered tool for reviewing SaaS contracts. Paste raw contract text and the app flags renewal traps, price escalators, and other negotiation risks, then **scores them by severity** so you can focus on the worst items first.
 
