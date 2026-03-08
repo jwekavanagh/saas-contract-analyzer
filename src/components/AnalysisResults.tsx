@@ -6,6 +6,8 @@ import type {
   RenewalClause
 } from "../analysis/contractAnalyzer";
 import type { Severity } from "../analysis/severityConfig";
+import { generatePlaybook } from "../utils/playbookGenerator";
+import { NegotiationPlaybook } from "./NegotiationPlaybook";
 
 type SelectedTile = "renewal" | "escalators" | "auto" | "issues" | null;
 
@@ -104,6 +106,7 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
   } = analysis;
 
   const [selectedTile, setSelectedTile] = useState<SelectedTile>(null);
+  const [showPlaybook, setShowPlaybook] = useState(false);
 
   const highCount = issues.filter((i) => i.severity === "high").length;
   const mediumCount = issues.filter((i) => i.severity === "medium").length;
@@ -280,19 +283,47 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
             <div className="detail-panel-inner">
               <h3 className="detail-panel-title">Red Flags & To-Dos</h3>
               {redFlagsIssues.length > 0 ? (
-                <ul className="issues-list-by-severity">
-                  {redFlagsIssues.map((issue, idx) => (
-                    <li key={idx} className={`issues-list-item issues-list-item--${issue.severity}`}>
-                      <SeverityBadge severity={issue.severity} />
-                      <div className="issues-list-item-content">
-                        <p className="issues-list-item-reason">{issue.reason}</p>
-                        {issue.clauseText && (
-                          <p className="issues-list-item-clause">{issue.clauseText}</p>
-                        )}
+                <>
+                  {!showPlaybook && (
+                    <div className="playbook-button-container">
+                      <button
+                        type="button"
+                        onClick={() => setShowPlaybook(true)}
+                        className="primary-button"
+                      >
+                        Generate Negotiation Playbook
+                      </button>
+                    </div>
+                  )}
+                  {showPlaybook ? (
+                    <>
+                      <div className="playbook-back-container">
+                        <button
+                          type="button"
+                          onClick={() => setShowPlaybook(false)}
+                          className="ghost-button"
+                        >
+                          ← Back to issues
+                        </button>
                       </div>
-                    </li>
-                  ))}
-                </ul>
+                      <NegotiationPlaybook playbook={generatePlaybook(redFlagsIssues)} />
+                    </>
+                  ) : (
+                    <ul className="issues-list-by-severity">
+                      {redFlagsIssues.map((issue, idx) => (
+                        <li key={idx} className={`issues-list-item issues-list-item--${issue.severity}`}>
+                          <SeverityBadge severity={issue.severity} />
+                          <div className="issues-list-item-content">
+                            <p className="issues-list-item-reason">{issue.reason}</p>
+                            {issue.clauseText && (
+                              <p className="issues-list-item-clause">{issue.clauseText}</p>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               ) : (
                 <p className="muted">No high-priority issues detected.</p>
               )}
