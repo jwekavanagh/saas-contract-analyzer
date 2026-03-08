@@ -133,7 +133,7 @@ function extractOwnershipPhrase(text: string): string {
   if (!text || typeof text !== 'string') return "";
   // Look for patterns like "Customer retains ownership", "Customer owns", "retain all ownership"
   // Priority: patterns that include "Customer" as subject
-  const customerPattern = /(?:the\s+)?customer\s+(?:retains?|shall\s+retain|owns?|shall\s+own)\s+(?:all\s+)?(?:rights\s+and\s+)?ownership/i;
+  const customerPattern = /(?:the\s+)?customer\s+(?:retains?|shall\s+retain|owns?|shall\s+own)\s+(?:all\s+)?(?:rights\s+and\s+)?\bownership\b/i;
   const customerMatch = text.match(customerPattern);
   if (customerMatch) {
     let phrase = customerMatch[0].trim();
@@ -147,7 +147,7 @@ function extractOwnershipPhrase(text: string): string {
   }
   
   // Fallback: look for "retains ownership" or similar
-  const retainPattern = /retains?\s+(?:all\s+)?(?:rights\s+and\s+)?ownership/i;
+  const retainPattern = /retains?\s+(?:all\s+)?(?:rights\s+and\s+)?\bownership\b/i;
   const retainMatch = text.match(retainPattern);
   if (retainMatch) {
     return retainMatch[0].trim();
@@ -350,29 +350,21 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
     
     // Ensure clauses are valid strings before processing
     if (ownershipClause && licenseClause && typeof ownershipClause === 'string' && typeof licenseClause === 'string') {
-      const ownershipSection = extractSectionReference(ownershipClause);
-      const licenseSection = extractSectionReference(licenseClause);
-      const ownershipPhrase = extractOwnershipPhrase(ownershipClause);
-      const licensePhrase = extractLicensePhrase(licenseClause);
-    
-      // Format: "Section 5.1: Customer retains ownership. Section 5.2: grants Provider a perpetual, irrevocable license."
-      let clauseText = "";
-      if (ownershipSection) {
-        clauseText += `${ownershipSection}: ${ownershipPhrase}. `;
-      } else {
-        clauseText += `Ownership: ${ownershipPhrase}. `;
-      }
-      if (licenseSection) {
-        clauseText += `${licenseSection}: ${licensePhrase}.`;
-      } else {
-        clauseText += `License: ${licensePhrase}.`;
-      }
+      // Truncate clauses to a reasonable length for display (max 150 chars each)
+      // This prevents UI issues while still showing the actual detected clauses
+      const truncateClause = (clause: string, maxLength: number = 150): string => {
+        if (clause.length <= maxLength) return clause;
+        return clause.substring(0, maxLength - 3).trim() + "...";
+      };
+      
+      const ownershipDisplay = truncateClause(ownershipClause);
+      const licenseDisplay = truncateClause(licenseClause);
       
       issues.push({
         severity: "high",
         reason: "Contract states Customer owns its data but grants Provider a perpetual, irrevocable license over it — these may conflict. Review with counsel.",
         category: "data_ownership",
-        clauseText: clauseText.trim()
+        clauseText: `Ownership clause: ${ownershipDisplay} License clause: ${licenseDisplay}`
       });
     }
   }
@@ -393,6 +385,8 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
     });
   }
 
+  // Sort issues by severity: high → medium → low → informational
+  // This ensures the most critical issues appear first in the UI
   issues.sort(compareBySeverity);
 
   return {

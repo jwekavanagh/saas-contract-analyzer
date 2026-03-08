@@ -243,8 +243,12 @@ Section 10: Provider receives a perpetual, irrevocable license to all Customer d
       );
 
       expect(dataOwnershipIssues.length).toBeGreaterThan(0);
-      // Should use first ownership clause in display
+      // Evidence now includes the actual detected clauses
+      expect(dataOwnershipIssues[0].clauseText).toContain('Ownership clause:');
+      expect(dataOwnershipIssues[0].clauseText).toContain('License clause:');
       expect(dataOwnershipIssues[0].clauseText).toContain('retains ownership');
+      expect(dataOwnershipIssues[0].clauseText).toContain('perpetual');
+      expect(dataOwnershipIssues[0].clauseText).toContain('irrevocable');
     });
 
     it('handles multiple license clauses', () => {

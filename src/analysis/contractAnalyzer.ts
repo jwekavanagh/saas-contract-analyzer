@@ -351,7 +351,7 @@ function hasDataOwnershipLanguage(sentence: string): boolean {
   // FIRST: Check for provider ownership - if provider owns, this is NOT customer ownership
   // This must be checked before pattern matching to prevent false positives like
   // "Provider retains ownership of all customer data"
-  const providerOwnershipPattern = /provider.*(owns?|ownership|retains?\s+ownership|shall\s+(own|retain\s+ownership))/i;
+  const providerOwnershipPattern = /provider.*(\bowns?\b|\bownership\b|\bretains?\s+ownership|shall\s+(\bown\b|\bretain\s+ownership))/i;
   if (providerOwnershipPattern.test(sentence)) {
     return false;
   }
@@ -362,11 +362,11 @@ function hasDataOwnershipLanguage(sentence: string): boolean {
   // is checked first, so "Provider retains ownership of customer data" will return false before
   // these patterns are evaluated.
   const ownershipPatterns = [
-    /customer\s+(retains?|shall\s+retain|owns?|shall\s+own)\s+(all\s+)?ownership/i,
-    /ownership\s+(of|in|to)\s+(customer|customer's|its|the\s+customer's)\s+(data|information|content)/i,
-    /(customer|customer's|its|the\s+customer's)\s+(data|information|content)\s+.*ownership/i,
-    /customer\s+retains?\s+(all\s+)?(rights\s+and\s+)?ownership/i,
-    /ownership\s+of\s+(all\s+)?(customer|customer's|its)\s+(data|information|content)/i
+    /customer\s+(\bretains?\b|shall\s+retain|\bowns?\b|shall\s+\bown\b)\s+(all\s+)?\bownership\b/i,
+    /\bownership\b\s+(of|in|to)\s+(customer|customer's|its|the\s+customer's)\s+(data|information|content)/i,
+    /(customer|customer's|its|the\s+customer's)\s+(data|information|content)\s+.*\bownership\b/i,
+    /customer\s+\bretains?\b\s+(all\s+)?(rights\s+and\s+)?\bownership\b/i,
+    /\bownership\b\s+of\s+(all\s+)?(customer|customer's|its)\s+(data|information|content)/i
   ];
   
   // Check if any pattern matches
@@ -386,13 +386,43 @@ function hasDataOwnershipLanguage(sentence: string): boolean {
     return false;
   }
   
-  // Check that ownership is attributed to customer, not provider
+  // Check that ownership is attributed to customer, not provider or other third-party entities
   // Look for patterns where customer is the subject of ownership
+  // Use word boundaries to prevent false matches like "owner" or "autonomous"
+  
+  // First, exclude sentences where third-party entities (licensor, company, vendor, etc.) own customer data
+  // These patterns check for third-party entities before ownership verbs
+  const thirdPartyOwnershipPatterns = [
+    /\b(licensor|company|vendor|supplier|contractor|third[- ]?party|entity|organization)\b.*(\bowns?\b|\bownership\b|\bretains?\s+ownership).*customer/i,
+    /\b(licensor|company|vendor|supplier|contractor|third[- ]?party|entity|organization)\b.*(\bowns?\b|\bownership\b).*(customer|customer's|its)\s+(data|information|content)/i
+  ];
+  
+  // If a third-party entity owns customer data, this is NOT customer ownership
+  if (thirdPartyOwnershipPatterns.some(pattern => pattern.test(sentence))) {
+    return false;
+  }
+  
+  // Check for patterns where customer is the subject of ownership
+  // Only use patterns that require "customer" to appear BEFORE the ownership verb
+  // This ensures customer is the subject, not a third-party entity
+  // Patterns 2 and 4 are removed because they match ownership verbs before "customer",
+  // which could incorrectly match "Licensor owns customer data"
+  
+  // First, check for negations between "customer" and ownership verbs
+  // Exclude sentences like "Customer does not retain ownership" or "Customer shall not own"
+  const negationPatterns = [
+    /customer.*\b(does\s+not|do\s+not|did\s+not|shall\s+not|will\s+not|may\s+not|cannot|can\s+not|doesn'?t|don'?t|didn'?t|won'?t|shan'?t|mayn'?t)\b.*(\bowns?\b|\bownership\b|\bretains?\s+ownership)/i,
+    /customer.*\b(does\s+not|do\s+not|did\s+not|shall\s+not|will\s+not|may\s+not|cannot|can\s+not|doesn'?t|don'?t|didn'?t|won'?t|shan'?t|mayn'?t)\b.*(data|information|content).*(\bowns?\b|\bownership\b)/i
+  ];
+  
+  // If a negation appears between customer and ownership, this is NOT customer ownership
+  if (negationPatterns.some(pattern => pattern.test(sentence))) {
+    return false;
+  }
+  
   const customerOwnershipPatterns = [
-    /customer.*(owns?|ownership|retains?\s+ownership|shall\s+(own|retain\s+ownership))/i,
-    /(owns?|ownership|retains?\s+ownership).*customer/i,
-    /customer.*(data|information|content).*(owns?|ownership)/i,
-    /(owns?|ownership).*(customer|customer's|its)\s+(data|information|content)/i
+    /customer.*(\bowns?\b|\bownership\b|\bretains?\s+ownership|shall\s+(\bown\b|\bretain\s+ownership))/i,
+    /customer.*(data|information|content).*(\bowns?\b|\bownership\b)/i
   ];
   
   // Note: Provider ownership is already checked at the beginning of the function,
@@ -410,8 +440,39 @@ function hasPerpetualIrrevocableLicense(sentence: string): boolean {
   const lowered = sentence.toLowerCase();
   
   // Must have both "perpetual" and "irrevocable" (in any order)
-  const hasPerpetual = lowered.includes("perpetual");
-  const hasIrrevocable = lowered.includes("irrevocable");
+  // Check for word boundaries to match complete words and exclude negations
+  // Use regex with word boundaries to avoid matching negated terms like "non-perpetual"
+  
+  // Find all occurrences of "perpetual" and "irrevocable" in the sentence
+  const perpetualMatches: number[] = [];
+  const perpetualRegex = /\bperpetual\b/gi;
+  let match;
+  while ((match = perpetualRegex.exec(sentence)) !== null) {
+    perpetualMatches.push(match.index);
+  }
+  
+  const irrevocableMatches: number[] = [];
+  const irrevocableRegex = /\birrevocable\b/gi;
+  while ((match = irrevocableRegex.exec(sentence)) !== null) {
+    irrevocableMatches.push(match.index);
+  }
+  
+  // Check if any of the matched "perpetual" or "irrevocable" words are negated
+  // Only check the immediate context (up to 20 characters before) for negations
+  // This prevents false negatives when a sentence has both negated and non-negated occurrences
+  const checkIfNegated = (wordIndex: number, sentence: string): boolean => {
+    const contextStart = Math.max(0, wordIndex - 20);
+    const context = sentence.substring(contextStart, wordIndex);
+    // Check for negations immediately before the word
+    return /\b(no|non|not|never)[- ]?$/i.test(context);
+  };
+  
+  // Check if we have at least one non-negated "perpetual" and one non-negated "irrevocable"
+  const hasNonNegatedPerpetual = perpetualMatches.some(index => !checkIfNegated(index, sentence));
+  const hasNonNegatedIrrevocable = irrevocableMatches.some(index => !checkIfNegated(index, sentence));
+  
+  const hasPerpetual = perpetualMatches.length > 0 && hasNonNegatedPerpetual;
+  const hasIrrevocable = irrevocableMatches.length > 0 && hasNonNegatedIrrevocable;
   
   if (!hasPerpetual || !hasIrrevocable) {
     return false;
@@ -434,12 +495,15 @@ function hasPerpetualIrrevocableLicense(sentence: string): boolean {
                           lowered.includes("customer information");
   
   // Check for customer context - if license is granted BY customer or TO customer data
+  // Only match if data is explicitly mentioned to avoid false positives on non-data licenses
   const hasCustomerContext = lowered.includes("customer") && (
     lowered.includes("customer data") ||
     lowered.includes("customer's data") ||
     lowered.includes("customer information") ||
-    /customer.*grant/i.test(sentence) || // Customer grants...
-    /grant.*customer/i.test(sentence)    // ...grants to customer
+    // Customer grants...data (requires data/information/content in the grant context)
+    /customer.*grant.*(data|information|content)/i.test(sentence) ||
+    // ...grants to customer data (requires data/information/content in the grant context)
+    /grant.*customer.*(data|information|content)/i.test(sentence)
   );
   
   // Require explicit data reference OR customer context
