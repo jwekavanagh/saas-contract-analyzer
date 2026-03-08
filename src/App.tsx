@@ -85,14 +85,13 @@ function App() {
     <div className="app-root">
       <header className="app-header">
         <div>
-          <h1>SaaS Contract Analyzer</h1>
+          <h1>Redline</h1>
           <p className="subtitle">
             Paste a SaaS or commercial contract and let the analyzer surface key
             renewal terms, price escalators, and auto-renewal traps.
           </p>
         </div>
         <div className="header-badge">
-          <span className="badge-dot" />
           <span>AI-assisted review (non-legal advice)</span>
         </div>
       </header>
@@ -147,10 +146,6 @@ function App() {
             <div className="welcome-panel">
               <p className="welcome-kicker">Welcome</p>
               <h2 className="welcome-title">Get to the point of your SaaS contracts.</h2>
-              <p className="welcome-tagline">
-                Paste the term, pricing, and renewal sections and we will spotlight the few
-                clauses that actually need your attention.
-              </p>
               <ul className="welcome-points">
                 <li>See renewal dates and lock-in terms at a glance.</li>
                 <li>Catch price escalators and quiet year-over-year increases.</li>
