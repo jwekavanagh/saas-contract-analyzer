@@ -317,11 +317,33 @@ function extractFrequency(sentence: string): string | undefined {
 }
 
 function extractNoticePeriod(sentence: string): string | undefined {
-  const noticeRegex =
-    /\b(\d{1,3})\s*(day|days|month|months|year|years)\b(?![^\(]*\))/i;
-  const match = sentence.match(noticeRegex);
-  if (!match) return undefined;
-  return `${match[1]} ${match[2]}`;
+  // Look for notice periods specifically - these appear near "notice", "prior", "before", "cancel"
+  // This helps avoid matching renewal terms like "one (1) year periods"
+  const noticeContext = /(?:notice|prior|before|cancel|non-renewal).*?(?:\((\d{1,3})\)|(\d{1,3}))\s*(day|days|month|months)\b/i;
+  const noticeMatch = sentence.match(noticeContext);
+  if (noticeMatch) {
+    const days = noticeMatch[1] || noticeMatch[2];
+    const unit = noticeMatch[3];
+    if (days && unit) {
+      return `${days} ${unit}`;
+    }
+  }
+  
+  // Fallback: try to match numbers in parentheses like "(120) days" - prefer days/months over years
+  const parensDaysRegex = /\((\d{1,3})\)\s*(day|days|month|months)\b/i;
+  const parensDaysMatch = sentence.match(parensDaysRegex);
+  if (parensDaysMatch) {
+    return `${parensDaysMatch[1]} ${parensDaysMatch[2]}`;
+  }
+  
+  // Fallback to regular pattern like "120 days" or "90 days" (prefer days/months)
+  const daysRegex = /\b(\d{1,3})\s*(day|days|month|months)\b/i;
+  const daysMatch = sentence.match(daysRegex);
+  if (daysMatch) {
+    return `${daysMatch[1]} ${daysMatch[2]}`;
+  }
+  
+  return undefined;
 }
 
 function extractCancellationMethod(sentence: string): string | undefined {
@@ -506,6 +528,17 @@ function hasPerpetualIrrevocableLicense(sentence: string): boolean {
     /grant.*customer.*(data|information|content)/i.test(sentence)
   );
   
+  // Explicitly exclude licenses to non-data materials (software, IP, materials, etc.)
+  // Check if the license is specifically TO non-data items (software, IP, materials, etc.)
+  // and does NOT mention data/information/content
+  if (!hasDataReference && !hasCustomerContext) {
+    // Check if license is to non-data items
+    const licenseToNonData = /\b(?:license|grant|right).*?(?:to|of|for|over|in|use|access).*?\b(?:software|intellectual\s+property|ip\b|materials|works|products|services|technology|code|source\s+code|proprietary\s+information|trade\s+secrets)\b/i.test(sentence);
+    if (licenseToNonData) {
+      return false;
+    }
+  }
+  
   // Require explicit data reference OR customer context
   // Do NOT match licenses to other materials (software, IP, etc.) even if provider is mentioned
   return hasLicenseLanguage && (hasDataReference || hasCustomerContext);
@@ -575,7 +608,7 @@ export function analyzeContract(text: string): ContractAnalysis {
     // Price escalators
     if (
       lowered.includes("escalat") ||
-      (lowered.includes("increase") && lowered.includes("fee")) ||
+      (lowered.includes("increase") && (lowered.includes("fee") || lowered.includes("fees") || lowered.includes("price") || lowered.includes("pricing"))) ||
       (lowered.includes("%") && lowered.includes("year")) ||
       lowered.includes("cpi") ||
       lowered.includes("consumer price index")

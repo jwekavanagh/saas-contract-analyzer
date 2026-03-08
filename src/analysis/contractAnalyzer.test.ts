@@ -387,3 +387,143 @@ Provider may increase fees by up to 15% per year without cap.`;
     });
   });
 });
+
+describe('Auto-Renewal Notice Period Scoring', () => {
+  describe('Should Trigger HIGH Flag (>60 days)', () => {
+    it('flags 120-day notice period as HIGH', () => {
+      const contract = `This Agreement shall automatically renew for successive one (1) year periods unless either party provides written notice of non-renewal at least one hundred twenty (120) days prior to the end of the then-current term.`;
+
+      const result = analyzeContract(contract);
+      const autoRenewalIssues = result.issues.filter(
+        issue => issue.category === 'auto_renewal' && issue.severity === 'high'
+      );
+
+      expect(autoRenewalIssues.length).toBeGreaterThan(0);
+      expect(autoRenewalIssues[0].severity).toBe('high');
+      expect(autoRenewalIssues[0].reason).toContain('120 days');
+      expect(autoRenewalIssues[0].reason).toContain('easy to miss');
+      expect(autoRenewalIssues[0].reason).toContain('may result in involuntary renewal');
+    });
+
+    it('flags 90-day notice period as HIGH', () => {
+      const contract = `This Agreement shall automatically renew unless either party provides written notice at least ninety (90) days prior to the end of the term.`;
+
+      const result = analyzeContract(contract);
+      const autoRenewalIssues = result.issues.filter(
+        issue => issue.category === 'auto_renewal' && issue.severity === 'high'
+      );
+
+      expect(autoRenewalIssues.length).toBeGreaterThan(0);
+      expect(autoRenewalIssues[0].severity).toBe('high');
+    });
+
+    it('flags 3-month notice period as HIGH (90 days)', () => {
+      const contract = `This Agreement shall automatically renew unless either party provides written notice at least three (3) months prior to the end of the term.`;
+
+      const result = analyzeContract(contract);
+      const autoRenewalIssues = result.issues.filter(
+        issue => issue.category === 'auto_renewal' && issue.severity === 'high'
+      );
+
+      expect(autoRenewalIssues.length).toBeGreaterThan(0);
+      expect(autoRenewalIssues[0].severity).toBe('high');
+    });
+
+    it('appears in Red Flags section when HIGH', () => {
+      const contract = `This Agreement shall automatically renew unless either party provides written notice at least one hundred twenty (120) days prior to the end of the term.`;
+
+      const result = analyzeContract(contract);
+      const autoRenewalIssues = result.issues.filter(
+        issue => issue.category === 'auto_renewal' && (issue.severity === 'high' || issue.severity === 'medium')
+      );
+
+      expect(autoRenewalIssues.length).toBeGreaterThan(0);
+      expect(autoRenewalIssues[0].severity).toBe('high');
+      // High severity issues appear in Red Flags
+      expect(['high', 'medium']).toContain(autoRenewalIssues[0].severity);
+    });
+  });
+
+  describe('Should NOT Trigger HIGH Flag (≤60 days)', () => {
+    it('does not flag 60-day notice period as HIGH (should be MEDIUM)', () => {
+      const contract = `This Agreement shall automatically renew for successive one (1) year periods unless either party provides written notice of non-renewal at least sixty (60) days prior to the end of the then-current term.`;
+
+      const result = analyzeContract(contract);
+      const autoRenewalHighIssues = result.issues.filter(
+        issue => issue.category === 'auto_renewal' && issue.severity === 'high'
+      );
+      const autoRenewalMediumIssues = result.issues.filter(
+        issue => issue.category === 'auto_renewal' && issue.severity === 'medium'
+      );
+
+      expect(autoRenewalHighIssues.length).toBe(0);
+      expect(autoRenewalMediumIssues.length).toBeGreaterThan(0);
+      expect(autoRenewalMediumIssues[0].severity).toBe('medium');
+    });
+
+    it('does not flag 30-day notice period as HIGH (should be LOW)', () => {
+      const contract = `This Agreement shall automatically renew unless either party provides written notice at least thirty (30) days prior to the end of the term.`;
+
+      const result = analyzeContract(contract);
+      const autoRenewalHighIssues = result.issues.filter(
+        issue => issue.category === 'auto_renewal' && issue.severity === 'high'
+      );
+      const autoRenewalLowIssues = result.issues.filter(
+        issue => issue.category === 'auto_renewal' && issue.severity === 'low'
+      );
+
+      expect(autoRenewalHighIssues.length).toBe(0);
+      expect(autoRenewalLowIssues.length).toBeGreaterThan(0);
+    });
+
+    it('does not flag 1-month notice period as HIGH (should be LOW)', () => {
+      const contract = `This Agreement shall automatically renew unless either party provides written notice at least one (1) month prior to the end of the term.`;
+
+      const result = analyzeContract(contract);
+      const autoRenewalHighIssues = result.issues.filter(
+        issue => issue.category === 'auto_renewal' && issue.severity === 'high'
+      );
+
+      expect(autoRenewalHighIssues.length).toBe(0);
+    });
+  });
+
+  describe('Message Format', () => {
+    it('uses correct message format for HIGH severity', () => {
+      const contract = `This Agreement shall automatically renew unless either party provides written notice at least one hundred twenty (120) days prior to the end of the term.`;
+
+      const result = analyzeContract(contract);
+      const autoRenewalHighIssues = result.issues.filter(
+        issue => issue.category === 'auto_renewal' && issue.severity === 'high'
+      );
+
+      expect(autoRenewalHighIssues.length).toBeGreaterThan(0);
+      expect(autoRenewalHighIssues[0].reason).toMatch(/Auto-renewal notice period is.*120.*days/);
+      expect(autoRenewalHighIssues[0].reason).toContain('easy to miss');
+      expect(autoRenewalHighIssues[0].reason).toContain('may result in involuntary renewal');
+    });
+  });
+
+  describe('Integration with Other Issues', () => {
+    it('sorts auto-renewal HIGH issues correctly with other HIGH issues', () => {
+      const contract = `This Agreement shall automatically renew unless either party provides written notice at least one hundred twenty (120) days prior to the end of the term.
+
+Provider may increase fees by up to 15% per year without cap.`;
+
+      const result = analyzeContract(contract);
+      const highIssues = result.issues.filter(i => i.severity === 'high');
+      
+      expect(highIssues.length).toBeGreaterThan(1);
+      
+      // Auto-renewal issue should be in the high-severity list
+      const autoRenewalHighIssues = highIssues.filter(
+        issue => issue.category === 'auto_renewal'
+      );
+      expect(autoRenewalHighIssues.length).toBeGreaterThan(0);
+      
+      // All high issues should be sorted first
+      const firstIssue = result.issues[0];
+      expect(firstIssue.severity).toBe('high');
+    });
+  });
+});

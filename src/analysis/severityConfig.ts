@@ -267,7 +267,7 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
     if (days != null) {
       if (days > NOTICE_DAYS_HIGH) {
         severity = "high";
-        reason = `Notice period (${c.noticePeriod}) exceeds ${NOTICE_DAYS_HIGH} days — easy to miss, results in involuntary renewal.`;
+        reason = `Auto-renewal notice period is ${c.noticePeriod} — easy to miss, may result in involuntary renewal.`;
       } else if (days > NOTICE_DAYS_MEDIUM) {
         severity = "medium";
         reason = `${c.noticePeriod} notice required — negotiate a shorter window if possible.`;
