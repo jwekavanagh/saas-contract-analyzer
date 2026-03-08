@@ -120,6 +120,7 @@ function hasOneSidedTerminationForConvenience(text: string): boolean {
 
 /** Extract section reference from clause text (e.g., "Section 5.1", "Article 4") */
 function extractSectionReference(text: string): string {
+  if (!text || typeof text !== 'string') return "";
   const sectionMatch = text.match(/(?:Section|Article|Clause)\s+[\d.]+/i);
   if (sectionMatch) {
     return sectionMatch[0];
@@ -129,6 +130,7 @@ function extractSectionReference(text: string): string {
 
 /** Extract key ownership phrase from clause (e.g., "Customer retains ownership") */
 function extractOwnershipPhrase(text: string): string {
+  if (!text || typeof text !== 'string') return "";
   // Look for patterns like "Customer retains ownership", "Customer owns", "retain all ownership"
   // Priority: patterns that include "Customer" as subject
   const customerPattern = /(?:the\s+)?customer\s+(?:retains?|shall\s+retain|owns?|shall\s+own)\s+(?:all\s+)?(?:rights\s+and\s+)?ownership/i;
@@ -157,6 +159,7 @@ function extractOwnershipPhrase(text: string): string {
 
 /** Extract key license phrase from clause (e.g., "grants Provider a perpetual, irrevocable license") */
 function extractLicensePhrase(text: string): string {
+  if (!text || typeof text !== 'string') return "";
   // First, try to find "grants" followed by entity and license terms
   // Pattern: "grants [to] [entity] ... perpetual ... irrevocable ... license"
   // or "grants [to] [entity] ... irrevocable ... perpetual ... license"
@@ -345,30 +348,33 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
     const ownershipClause = dataOwnershipClauses[0];
     const licenseClause = perpetualIrrevocableLicenseClauses[0];
     
-    const ownershipSection = extractSectionReference(ownershipClause);
-    const licenseSection = extractSectionReference(licenseClause);
-    const ownershipPhrase = extractOwnershipPhrase(ownershipClause);
-    const licensePhrase = extractLicensePhrase(licenseClause);
+    // Ensure clauses are valid strings before processing
+    if (ownershipClause && licenseClause && typeof ownershipClause === 'string' && typeof licenseClause === 'string') {
+      const ownershipSection = extractSectionReference(ownershipClause);
+      const licenseSection = extractSectionReference(licenseClause);
+      const ownershipPhrase = extractOwnershipPhrase(ownershipClause);
+      const licensePhrase = extractLicensePhrase(licenseClause);
     
-    // Format: "Section 5.1: Customer retains ownership. Section 5.2: grants Provider a perpetual, irrevocable license."
-    let clauseText = "";
-    if (ownershipSection) {
-      clauseText += `${ownershipSection}: ${ownershipPhrase}. `;
-    } else {
-      clauseText += `Ownership: ${ownershipPhrase}. `;
+      // Format: "Section 5.1: Customer retains ownership. Section 5.2: grants Provider a perpetual, irrevocable license."
+      let clauseText = "";
+      if (ownershipSection) {
+        clauseText += `${ownershipSection}: ${ownershipPhrase}. `;
+      } else {
+        clauseText += `Ownership: ${ownershipPhrase}. `;
+      }
+      if (licenseSection) {
+        clauseText += `${licenseSection}: ${licensePhrase}.`;
+      } else {
+        clauseText += `License: ${licensePhrase}.`;
+      }
+      
+      issues.push({
+        severity: "high",
+        reason: "Contract states Customer owns its data but grants Provider a perpetual, irrevocable license over it — these may conflict. Review with counsel.",
+        category: "data_ownership",
+        clauseText: clauseText.trim()
+      });
     }
-    if (licenseSection) {
-      clauseText += `${licenseSection}: ${licensePhrase}.`;
-    } else {
-      clauseText += `License: ${licensePhrase}.`;
-    }
-    
-    issues.push({
-      severity: "high",
-      reason: "Contract states Customer owns its data but grants Provider a perpetual, irrevocable license over it — these may conflict. Review with counsel.",
-      category: "data_ownership",
-      clauseText: clauseText.trim()
-    });
   }
 
   // --- Missing clauses (informational) ---
