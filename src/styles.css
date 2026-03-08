@@ -1109,3 +1109,55 @@ body.light .playbook-item-counter strong {
   }
 }
 
+/* PDF Upload Styles */
+.pdf-upload-zone {
+  margin-bottom: 12px;
+  padding: 24px;
+  border: 2px dashed var(--border-subtle);
+  border-radius: 14px;
+  background: radial-gradient(circle at top left, var(--input-bg-start), var(--input-bg-end));
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.pdf-upload-zone:hover {
+  border-color: var(--accent-strong);
+  background: radial-gradient(circle at top left, var(--bg-elevated), var(--input-bg-end));
+}
+
+.pdf-upload-zone.is-dragging {
+  border-color: var(--accent-stronger);
+  background: var(--accent-soft);
+  border-style: solid;
+}
+
+.pdf-upload-zone.is-extracting {
+  cursor: wait;
+  opacity: 0.8;
+}
+
+.pdf-upload-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdf-upload-icon {
+  font-size: 2rem;
+  margin-bottom: 4px;
+}
+
+.pdf-upload-text {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.pdf-upload-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}

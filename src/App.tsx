@@ -3,6 +3,7 @@ import { analyzeContract, type ContractAnalysis } from "./analysis/contractAnaly
 import { AnalysisResults } from "./components/AnalysisResults";
 import { ComparisonResults } from "./components/ComparisonResults";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { PDFUpload } from "./components/PDFUpload";
 import { compareContracts } from "./utils/contractComparison";
 
 const SAMPLE_CONTRACT = `This Software as a Service Subscription Agreement (the "Agreement") is entered into as of January 1, 2026 (the "Effective Date") for an initial term of one (1) year (the "Initial Term").
@@ -208,17 +209,34 @@ function App() {
           </header>
           <div className="card-body">
             {mode === "single" ? (
-              <textarea
-                className="contract-input"
-                placeholder="Paste contract language here (no formatting needed)..."
-                value={contractText}
-                onChange={(e) => setContractText(e.target.value)}
-                rows={14}
-              />
+              <>
+                <PDFUpload
+                  onTextExtracted={(text) => {
+                    setContractText(text);
+                    setError(null);
+                  }}
+                  onError={(errorMsg) => setError(errorMsg)}
+                />
+                <textarea
+                  className="contract-input"
+                  placeholder="Paste contract language here (no formatting needed)..."
+                  value={contractText}
+                  onChange={(e) => setContractText(e.target.value)}
+                  rows={14}
+                />
+              </>
             ) : (
               <div className="comparison-inputs">
                 <div className="comparison-input-group">
                   <label className="comparison-input-label">Original</label>
+                  <PDFUpload
+                    label="Drag PDF here or click to upload"
+                    onTextExtracted={(text) => {
+                      setOriginalText(text);
+                      setError(null);
+                    }}
+                    onError={(errorMsg) => setError(errorMsg)}
+                  />
                   <textarea
                     className="contract-input"
                     placeholder="Paste the original contract version..."
@@ -229,6 +247,14 @@ function App() {
                 </div>
                 <div className="comparison-input-group">
                   <label className="comparison-input-label">Revised</label>
+                  <PDFUpload
+                    label="Drag PDF here or click to upload"
+                    onTextExtracted={(text) => {
+                      setRevisedText(text);
+                      setError(null);
+                    }}
+                    onError={(errorMsg) => setError(errorMsg)}
+                  />
                   <textarea
                     className="contract-input"
                     placeholder="Paste the revised contract version..."
