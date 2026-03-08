@@ -392,18 +392,6 @@ body {
     0 18px 40px rgba(8, 47, 73, 0.85);
 }
 
-.result-card--empty {
-  border-left: 3px solid rgba(148, 163, 184, 0.5);
-}
-
-.result-card--info {
-  border-left: 3px solid rgba(148, 163, 184, 0.5);
-}
-
-.result-card--alert {
-  border-left: 3px solid rgba(148, 163, 184, 0.5);
-}
-
 .clause-list {
   list-style: decimal;
   margin: 0;
