@@ -11,12 +11,12 @@ export interface RiskScore {
 /**
  * Calculates a risk score (A-F) based on severity counts.
  * 
- * Scoring logic:
+ * Scoring logic (recalibrated):
  * - A: Zero high/medium issues (clean contract)
- * - B: One medium issue, no high issues
- * - C: One high issue, or multiple mediums (2-3)
- * - D: 2-3 high issues, or 1 high + multiple mediums
- * - F: 4+ high issues, or 3+ highs + any mediums
+ * - B: 1-2 medium issues, no high issues (reasonable contract with minor issues)
+ * - C: 1 high issue (with 0-1 medium), or 3 mediums (moderate risk)
+ * - D: 2-3 high issues, or 1 high + 2+ mediums (high risk)
+ * - F: 4+ high issues, or 3+ highs + any mediums (very high risk)
  */
 export function calculateRiskScore(analysis: ContractAnalysis): RiskScore {
   const highCount = analysis.issues.filter((i) => i.severity === "high").length;
@@ -30,36 +30,36 @@ export function calculateRiskScore(analysis: ContractAnalysis): RiskScore {
     };
   }
 
-  // B: One medium, no high
-  if (highCount === 0 && mediumCount === 1) {
+  // B: 1-2 mediums, no high (reasonable contract with minor issues)
+  if (highCount === 0 && mediumCount >= 1 && mediumCount <= 2) {
     return {
       grade: "B",
-      descriptor: "Low to moderate risk. Minor issues may need review."
+      descriptor: "Low to moderate risk. Some issues worth negotiating, nothing alarming."
     };
   }
 
-  // C: One high (with 0-2 mediums), or 2-3 mediums
-  if (highCount === 1 && mediumCount <= 2) {
+  // C: One high (with 0-1 medium), or 3 mediums
+  if (highCount === 1 && mediumCount <= 1) {
     return {
       grade: "C",
       descriptor: "Moderate risk. One significant issue requires attention."
     };
   }
-  if (highCount === 0 && mediumCount >= 2 && mediumCount <= 3) {
+  if (highCount === 0 && mediumCount === 3) {
     return {
       grade: "C",
       descriptor: "Moderate risk. Several issues need review."
     };
   }
 
-  // D: 2-3 highs, or 1 high + 3+ mediums
+  // D: 2-3 highs, or 1 high + 2+ mediums, or 4+ mediums
   if (highCount >= 2 && highCount <= 3 && mediumCount === 0) {
     return {
       grade: "D",
       descriptor: "High risk. Multiple significant issues require negotiation."
     };
   }
-  if (highCount === 1 && mediumCount >= 3) {
+  if (highCount === 1 && mediumCount >= 2) {
     return {
       grade: "D",
       descriptor: "High risk. Multiple issues require negotiation before signing."
@@ -69,6 +69,12 @@ export function calculateRiskScore(analysis: ContractAnalysis): RiskScore {
     return {
       grade: "D",
       descriptor: "High risk. Multiple significant issues require negotiation."
+    };
+  }
+  if (highCount === 0 && mediumCount >= 4) {
+    return {
+      grade: "D",
+      descriptor: "High risk. Many issues require negotiation before signing."
     };
   }
 
@@ -83,14 +89,6 @@ export function calculateRiskScore(analysis: ContractAnalysis): RiskScore {
     return {
       grade: "F",
       descriptor: "Very high risk. Multiple critical issues. Do not sign without major revisions."
-    };
-  }
-
-  // Fallback for edge cases (e.g., many mediums without highs)
-  if (mediumCount >= 4) {
-    return {
-      grade: "D",
-      descriptor: "High risk. Many issues require negotiation before signing."
     };
   }
 

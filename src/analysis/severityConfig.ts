@@ -41,10 +41,10 @@ export function compareBySeverity(a: ScoredIssue, b: ScoredIssue): number {
 
 // --- Configurable thresholds (tune here without touching detection) ---
 
-const NOTICE_DAYS_HIGH = 60;   // > this = high (involuntary lock-in)
-const NOTICE_DAYS_MEDIUM = 30; // 31–60 = medium, ≤30 = low
+const NOTICE_DAYS_HIGH = 90;   // > this = high (involuntary lock-in)
+const NOTICE_DAYS_MEDIUM = 60; // 61–90 = medium, ≤60 = low
 const ESCALATOR_PCT_HIGH = 10;  // no cap or > this = high
-const ESCALATOR_PCT_MEDIUM = 5; // 5–10% = medium, CPI ≤5% = low
+const ESCALATOR_PCT_MEDIUM = 7; // 7–10% = medium, ≤7% = low (or CPI-linked)
 
 // --- Raw clause shapes (from detector; no severity yet) ---
 
@@ -273,7 +273,13 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
         reason = `${c.noticePeriod} notice required — negotiate a shorter window if possible. Market standard: 30-60 days.`;
       } else {
         severity = "low";
-        reason = `Standard notice period (${c.noticePeriod}). Market standard: 30-60 days.`;
+        // For ≤30 days: better than market standard (shorter is better for customer)
+        // For 31-60 days: within market standard
+        if (days <= 30) {
+          reason = `Notice period (${c.noticePeriod}) is within or better than market standard (30-60 days).`;
+        } else {
+          reason = `Standard notice period (${c.noticePeriod}) — within market standard (30-60 days).`;
+        }
       }
     }
     issues.push({ severity, reason, clauseText: c.sentence, category: "auto_renewal" });
@@ -286,20 +292,44 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
     // Read cap from the field set by the analyzer - don't re-detect it
     const hasCap = c.cap != null;
     const isCpi = /cpi|consumer price index/i.test(c.sentence);
+    
+    // Extract cap value if present (e.g., "not to exceed 8%") for display purposes only
+    let capPct: number | null = null;
+    if (hasCap) {
+      const capMatch = c.sentence.match(/(?:not\s+to\s+exceed|ceiling|maximum|cap\s+of|not\s+exceed)\s+(\d{1,2}(?:\.\d+)?)\s*%/i);
+      if (capMatch) {
+        capPct = parsePercent(capMatch[1] + "%");
+      }
+      // If no explicit cap value found, look for the highest percentage in the sentence
+      if (capPct == null) {
+        const allPercents = c.sentence.match(/\b(\d{1,2}(?:\.\d+)?)\s*%/g);
+        if (allPercents && allPercents.length > 0) {
+          const parsedPercents = allPercents.map(p => parsePercent(p)).filter(p => p != null) as number[];
+          if (parsedPercents.length > 0) {
+            capPct = Math.max(...parsedPercents);
+          }
+        }
+      }
+    }
+    
+    // Risk assessment is based on the base escalation rate, not the cap
+    // The cap is a protective limit, not the actual risk
+    const effectivePct = pct;
+    
     let severity: Severity = "informational";
     let reason = "Price increase clause detected.";
-    if (pct != null && !hasCap) {
+    if (effectivePct != null && !hasCap) {
       severity = "high";
       reason = "Uncapped price increase — no ceiling on annual raises. Market standard: 3-5% or CPI-linked.";
-    } else if (pct != null && pct > ESCALATOR_PCT_HIGH) {
+    } else if (effectivePct != null && effectivePct > ESCALATOR_PCT_HIGH) {
       severity = "high";
-      reason = `Increase up to ${c.percentage} per year — high exposure; negotiate a lower cap. Market standard: 3-5% or CPI-linked.`;
-    } else if (pct != null && pct >= ESCALATOR_PCT_MEDIUM && pct <= ESCALATOR_PCT_HIGH) {
+      reason = `Increase of ${c.percentage} per year — high exposure; negotiate a lower rate. Market standard: 3-5% or CPI-linked.`;
+    } else if (effectivePct != null && effectivePct >= ESCALATOR_PCT_MEDIUM && effectivePct <= ESCALATOR_PCT_HIGH) {
       severity = "medium";
-      reason = `Escalator capped at ${c.percentage} — reasonable but worth negotiating. Market standard: 3-5% or CPI-linked.`;
-    } else if (hasCap && (isCpi || (pct != null && pct <= ESCALATOR_PCT_MEDIUM))) {
+      reason = `Escalator of ${c.percentage}${capPct != null ? ` (capped at ${capPct}%)` : ""} — reasonable but worth negotiating. Market standard: 3-5% or CPI-linked.`;
+    } else if (hasCap && (isCpi || (effectivePct != null && effectivePct <= ESCALATOR_PCT_MEDIUM))) {
       severity = "low";
-      reason = isCpi ? "CPI-linked with a cap — standard. Market standard: 3-5% or CPI-linked." : `Capped at ${c.percentage} — low risk. Market standard: 3-5% or CPI-linked.`;
+      reason = isCpi ? "CPI-linked with a cap — standard. Market standard: 3-5% or CPI-linked." : `Escalator of ${c.percentage}${capPct != null ? ` (capped at ${capPct}%)` : ""} — low risk. Market standard: 3-5% or CPI-linked.`;
     }
     issues.push({ severity, reason, clauseText: c.sentence, category: "price_escalator" });
     return { ...c, severity, reason };
@@ -318,6 +348,12 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
     issues.push({
       severity: "high",
       reason: `Customer must give ${terminationNoticeDays} days' notice to terminate — long window increases risk of involuntary renewal. Market standard: 30-60 days.`,
+      category: "termination"
+    });
+  } else if (terminationNoticeDays != null && terminationNoticeDays > NOTICE_DAYS_MEDIUM) {
+    issues.push({
+      severity: "medium",
+      reason: `Customer must give ${terminationNoticeDays} days' notice to terminate — negotiate a shorter window if possible. Market standard: 30-60 days.`,
       category: "termination"
     });
   }
