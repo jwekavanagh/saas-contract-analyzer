@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { analyzeContract, type ContractAnalysis } from "./analysis/contractAnalyzer";
 import { AnalysisResults } from "./components/AnalysisResults";
+import { ThemeToggle } from "./components/ThemeToggle";
 
 const SAMPLE_CONTRACT = `This Software as a Service Subscription Agreement (the "Agreement") is entered into as of January 1, 2026 (the "Effective Date") for an initial term of one (1) year (the "Initial Term").
 
@@ -87,8 +88,11 @@ function App() {
         <div>
           <h1>Redline</h1>
         </div>
-        <div className="header-badge">
-          <span>AI-assisted review (non-legal advice)</span>
+        <div className="header-actions">
+          <div className="header-badge">
+            <span>AI-assisted review (non-legal advice)</span>
+          </div>
+          <ThemeToggle />
         </div>
       </header>
 
