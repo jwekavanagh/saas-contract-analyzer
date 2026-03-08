@@ -845,6 +845,119 @@ body.light .playbook-item-counter strong {
   color: var(--accent-stronger);
 }
 
+/* Comparison Mode Styles */
+.mode-toggle-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  padding: 2px;
+}
+
+.mode-toggle-button {
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-toggle-button:hover {
+  color: var(--text);
+  background: var(--bg-elevated);
+}
+
+.mode-toggle-button.active {
+  background: var(--accent-soft);
+  color: var(--accent-stronger);
+  font-weight: 600;
+}
+
+.comparison-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.comparison-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comparison-input-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.comparison-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.comparison-section {
+  cursor: default;
+}
+
+.comparison-section:hover {
+  transform: none;
+}
+
+.comparison-section--resolved {
+  border-left: 3px solid #10b981;
+}
+
+.comparison-section--new {
+  border-left: 3px solid var(--danger);
+}
+
+.comparison-section--improved {
+  border-left: 3px solid #3b82f6;
+}
+
+.comparison-section--worsened {
+  border-left: 3px solid #f59e0b;
+}
+
+.comparison-section--unchanged {
+  border-left: 3px solid var(--border-subtle);
+}
+
+.comparison-item {
+  position: relative;
+}
+
+.severity-change-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 4px 0;
+}
+
+.severity-change-arrow {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 @media (max-width: 900px) {
   .app-main {
     grid-template-columns: minmax(0, 1fr);
@@ -860,6 +973,15 @@ body.light .playbook-item-counter strong {
 
   .header-actions {
     align-self: flex-end;
+  }
+
+  .comparison-inputs {
+    grid-template-columns: 1fr;
+  }
+
+  .mode-toggle-container {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { analyzeContract, type ContractAnalysis } from "./analysis/contractAnalyzer";
 import { AnalysisResults } from "./components/AnalysisResults";
+import { ComparisonResults } from "./components/ComparisonResults";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { compareContracts } from "./utils/contractComparison";
 
 const SAMPLE_CONTRACT = `This Software as a Service Subscription Agreement (the "Agreement") is entered into as of January 1, 2026 (the "Effective Date") for an initial term of one (1) year (the "Initial Term").
 
@@ -34,52 +36,118 @@ function looksLikeContract(text: string): boolean {
   return lengthOk && hasCore && signals >= 3;
 }
 
+type AnalysisMode = "single" | "compare";
+
 function App() {
+  const [mode, setMode] = useState<AnalysisMode>("single");
   const [contractText, setContractText] = useState("");
+  const [originalText, setOriginalText] = useState("");
+  const [revisedText, setRevisedText] = useState("");
   const [analysis, setAnalysis] = useState<ContractAnalysis | null>(null);
+  const [comparison, setComparison] = useState<ReturnType<typeof compareContracts> | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canAnalyze = useMemo(
-    () => contractText.trim().length > 40 && !isAnalyzing,
-    [contractText, isAnalyzing]
-  );
+  const canAnalyze = useMemo(() => {
+    if (mode === "single") {
+      return contractText.trim().length > 40 && !isAnalyzing;
+    } else {
+      return (
+        originalText.trim().length > 40 &&
+        revisedText.trim().length > 40 &&
+        !isAnalyzing
+      );
+    }
+  }, [mode, contractText, originalText, revisedText, isAnalyzing]);
 
   const handleAnalyze = () => {
     setError(null);
-    const text = contractText.trim();
+    setComparison(null);
 
-    if (!text) {
-      setError("Paste a contract excerpt or use the sample to get started.");
-      return;
-    }
+    if (mode === "single") {
+      const text = contractText.trim();
 
-    if (!looksLikeContract(text)) {
-      setAnalysis(null);
-      setError(
-        "This text does not look like a contract. Please paste contract language (we look for words like 'Agreement', 'Parties', 'Term', 'Fees')."
-      );
-      return;
-    }
+      if (!text) {
+        setError("Paste a contract excerpt or use the sample to get started.");
+        return;
+      }
 
-    setIsAnalyzing(true);
+      if (!looksLikeContract(text)) {
+        setAnalysis(null);
+        setError(
+          "This text does not look like a contract. Please paste contract language (we look for words like 'Agreement', 'Parties', 'Term', 'Fees')."
+        );
+        return;
+      }
 
-    // Synchronous "AI" analysis – you could swap this out for an API call.
-    try {
-      const result = analyzeContract(text);
-      setAnalysis(result);
-    } catch (e) {
-      console.error(e);
-      setError("Something went wrong while analyzing the contract.");
-    } finally {
-      setIsAnalyzing(false);
+      setIsAnalyzing(true);
+
+      try {
+        const result = analyzeContract(text);
+        setAnalysis(result);
+      } catch (e) {
+        console.error(e);
+        setError("Something went wrong while analyzing the contract.");
+      } finally {
+        setIsAnalyzing(false);
+      }
+    } else {
+      // Comparison mode
+      const original = originalText.trim();
+      const revised = revisedText.trim();
+
+      if (!original || !revised) {
+        setError("Please paste both the original and revised contract versions.");
+        return;
+      }
+
+      if (!looksLikeContract(original)) {
+        setError(
+          "The original text does not look like a contract. Please paste contract language (we look for words like 'Agreement', 'Parties', 'Term', 'Fees')."
+        );
+        return;
+      }
+
+      if (!looksLikeContract(revised)) {
+        setError(
+          "The revised text does not look like a contract. Please paste contract language (we look for words like 'Agreement', 'Parties', 'Term', 'Fees')."
+        );
+        return;
+      }
+
+      setIsAnalyzing(true);
+
+      try {
+        const originalAnalysis = analyzeContract(original);
+        const revisedAnalysis = analyzeContract(revised);
+        const comparisonResult = compareContracts(originalAnalysis, revisedAnalysis);
+        setComparison(comparisonResult);
+        setAnalysis(null);
+      } catch (e) {
+        console.error(e);
+        setError("Something went wrong while comparing the contracts.");
+      } finally {
+        setIsAnalyzing(false);
+      }
     }
   };
 
   const handleUseSample = () => {
-    setContractText(SAMPLE_CONTRACT);
-    setAnalysis(null);
-    setError(null);
+    if (mode === "single") {
+      setContractText(SAMPLE_CONTRACT);
+      setAnalysis(null);
+      setError(null);
+    } else {
+      setOriginalText(SAMPLE_CONTRACT);
+      // Create a modified version for comparison
+      const modifiedSample = SAMPLE_CONTRACT.replace(
+        "sixty (60) days",
+        "thirty (30) days"
+      ).replace("eight percent (8%)", "five percent (5%)");
+      setRevisedText(modifiedSample);
+      setComparison(null);
+      setError(null);
+    }
   };
 
   return (
@@ -99,19 +167,74 @@ function App() {
       <main className="app-main">
         <section className="input-panel card">
           <header className="card-header">
-            <h2>Contract Text</h2>
+            <div className="mode-toggle-container">
+              <h2>{mode === "single" ? "Contract Text" : "Compare Versions"}</h2>
+              <div className="mode-toggle">
+                <button
+                  type="button"
+                  className={`mode-toggle-button ${mode === "single" ? "active" : ""}`}
+                  onClick={() => {
+                    setMode("single");
+                    setComparison(null);
+                    setAnalysis(null);
+                    setError(null);
+                  }}
+                >
+                  Single Contract
+                </button>
+                <button
+                  type="button"
+                  className={`mode-toggle-button ${mode === "compare" ? "active" : ""}`}
+                  onClick={() => {
+                    setMode("compare");
+                    setAnalysis(null);
+                    setComparison(null);
+                    setError(null);
+                  }}
+                >
+                  Compare Versions
+                </button>
+              </div>
+            </div>
             <p className="card-subtitle">
-              Paste the relevant sections (term, fees, renewal) or the entire agreement.
+              {mode === "single"
+                ? "Paste the relevant sections (term, fees, renewal) or the entire agreement."
+                : "Paste the original and revised contract versions to see what changed."}
             </p>
           </header>
           <div className="card-body">
-            <textarea
-              className="contract-input"
-              placeholder="Paste contract language here (no formatting needed)..."
-              value={contractText}
-              onChange={(e) => setContractText(e.target.value)}
-              rows={14}
-            />
+            {mode === "single" ? (
+              <textarea
+                className="contract-input"
+                placeholder="Paste contract language here (no formatting needed)..."
+                value={contractText}
+                onChange={(e) => setContractText(e.target.value)}
+                rows={14}
+              />
+            ) : (
+              <div className="comparison-inputs">
+                <div className="comparison-input-group">
+                  <label className="comparison-input-label">Original</label>
+                  <textarea
+                    className="contract-input"
+                    placeholder="Paste the original contract version..."
+                    value={originalText}
+                    onChange={(e) => setOriginalText(e.target.value)}
+                    rows={12}
+                  />
+                </div>
+                <div className="comparison-input-group">
+                  <label className="comparison-input-label">Revised</label>
+                  <textarea
+                    className="contract-input"
+                    placeholder="Paste the revised contract version..."
+                    value={revisedText}
+                    onChange={(e) => setRevisedText(e.target.value)}
+                    rows={12}
+                  />
+                </div>
+              </div>
+            )}
             {error && <p className="error-text">{error}</p>}
           </div>
           <footer className="card-footer">
@@ -122,14 +245,22 @@ function App() {
                 disabled={!canAnalyze}
                 className="primary-button"
               >
-                {isAnalyzing ? "Analyzing…" : "Analyze Contract"}
+                {isAnalyzing
+                  ? mode === "single"
+                    ? "Analyzing…"
+                    : "Comparing…"
+                  : mode === "single"
+                  ? "Analyze Contract"
+                  : "Compare Versions"}
               </button>
               <button
                 type="button"
                 onClick={handleUseSample}
                 className="ghost-button"
               >
-                Use sample SaaS contract
+                {mode === "single"
+                  ? "Use sample SaaS contract"
+                  : "Use sample contracts"}
               </button>
             </div>
             <p className="helper-text">
@@ -140,7 +271,9 @@ function App() {
         </section>
 
         <section className="results-panel">
-          {analysis ? (
+          {comparison ? (
+            <ComparisonResults comparison={comparison} />
+          ) : analysis ? (
             <AnalysisResults analysis={analysis} />
           ) : (
             <div className="welcome-panel">
@@ -150,6 +283,9 @@ function App() {
                 <li>See renewal dates and lock-in terms at a glance.</li>
                 <li>Catch price escalators and quiet year-over-year increases.</li>
                 <li>Avoid surprise auto-renewals with long notice periods.</li>
+                {mode === "compare" && (
+                  <li>Compare contract versions to see what changed in negotiations.</li>
+                )}
               </ul>
               <p className="welcome-footnote">
                 This is a fast first pass, not legal advice — use it to aim your human review
