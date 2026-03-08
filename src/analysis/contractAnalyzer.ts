@@ -333,6 +333,152 @@ function extractCancellationMethod(sentence: string): string | undefined {
   return undefined;
 }
 
+/**
+ * Detects if a sentence contains data ownership language (Customer owns/retains ownership of data)
+ */
+function hasDataOwnershipLanguage(sentence: string): boolean {
+  const lowered = sentence.toLowerCase();
+  
+  // Must have ownership keyword
+  const hasOwnershipKeyword = lowered.includes("ownership") || 
+                              lowered.includes("owns") || 
+                              lowered.includes("own");
+  
+  if (!hasOwnershipKeyword) {
+    return false;
+  }
+  
+  // FIRST: Check for provider ownership - if provider owns, this is NOT customer ownership
+  // This must be checked before pattern matching to prevent false positives like
+  // "Provider retains ownership of all customer data"
+  const providerOwnershipPattern = /provider.*(owns?|ownership|retains?\s+ownership|shall\s+(own|retain\s+ownership))/i;
+  if (providerOwnershipPattern.test(sentence)) {
+    return false;
+  }
+  
+  // Look for patterns like "Customer retains ownership", "Customer owns", "Customer shall retain ownership"
+  // Also check for "its data", "customer data", "data ownership"
+  // Note: Patterns that match "ownership of customer data" are safe because provider ownership
+  // is checked first, so "Provider retains ownership of customer data" will return false before
+  // these patterns are evaluated.
+  const ownershipPatterns = [
+    /customer\s+(retains?|shall\s+retain|owns?|shall\s+own)\s+(all\s+)?ownership/i,
+    /ownership\s+(of|in|to)\s+(customer|customer's|its|the\s+customer's)\s+(data|information|content)/i,
+    /(customer|customer's|its|the\s+customer's)\s+(data|information|content)\s+.*ownership/i,
+    /customer\s+retains?\s+(all\s+)?(rights\s+and\s+)?ownership/i,
+    /ownership\s+of\s+(all\s+)?(customer|customer's|its)\s+(data|information|content)/i
+  ];
+  
+  // Check if any pattern matches
+  if (ownershipPatterns.some(pattern => pattern.test(sentence))) {
+    return true;
+  }
+  
+  // Fallback: Check for ownership + data + customer reference, but require semantic alignment
+  // Ownership must be attributed to customer, not just that both words appear
+  const hasDataKeyword = lowered.includes("data") || 
+                        lowered.includes("information") || 
+                        lowered.includes("content");
+  const hasCustomerReference = lowered.includes("customer") || 
+                              (lowered.includes("party") && !lowered.includes("provider"));
+  
+  if (!hasDataKeyword || !hasCustomerReference) {
+    return false;
+  }
+  
+  // Check that ownership is attributed to customer, not provider
+  // Look for patterns where customer is the subject of ownership
+  const customerOwnershipPatterns = [
+    /customer.*(owns?|ownership|retains?\s+ownership|shall\s+(own|retain\s+ownership))/i,
+    /(owns?|ownership|retains?\s+ownership).*customer/i,
+    /customer.*(data|information|content).*(owns?|ownership)/i,
+    /(owns?|ownership).*(customer|customer's|its)\s+(data|information|content)/i
+  ];
+  
+  // Also check for negative cases - provider ownership
+  const providerOwnershipPattern = /provider.*(owns?|ownership|retains?\s+ownership)/i;
+  if (providerOwnershipPattern.test(sentence)) {
+    // If provider owns, this is not customer ownership
+    return false;
+  }
+  
+  // If we have customer ownership patterns, it's likely customer ownership
+  return customerOwnershipPatterns.some(pattern => pattern.test(sentence));
+}
+
+/**
+ * Detects if a sentence contains a perpetual, irrevocable license to customer data
+ * Returns true only if both "perpetual" and "irrevocable" are present
+ */
+function hasPerpetualIrrevocableLicense(sentence: string): boolean {
+  const lowered = sentence.toLowerCase();
+  
+  // Must have both "perpetual" and "irrevocable" (in any order)
+  const hasPerpetual = lowered.includes("perpetual");
+  const hasIrrevocable = lowered.includes("irrevocable");
+  
+  if (!hasPerpetual || !hasIrrevocable) {
+    return false;
+  }
+  
+  // Should also mention license, grant, or right
+  const hasLicenseLanguage = lowered.includes("license") || 
+                             lowered.includes("grant") || 
+                             lowered.includes("right") ||
+                             lowered.includes("rights") ||
+                             lowered.includes("licenses");
+  
+  // Must explicitly mention data, information, content, or customer context
+  // This prevents false positives from licenses to other materials (software, IP, etc.)
+  const hasDataReference = lowered.includes("data") || 
+                          lowered.includes("information") || 
+                          lowered.includes("content") ||
+                          lowered.includes("customer data") ||
+                          lowered.includes("customer's data") ||
+                          lowered.includes("customer information");
+  
+  // Check for customer context - if license is granted BY customer or TO customer data
+  const hasCustomerContext = lowered.includes("customer") && (
+    lowered.includes("customer data") ||
+    lowered.includes("customer's data") ||
+    lowered.includes("customer information") ||
+    /customer.*grant/i.test(sentence) || // Customer grants...
+    /grant.*customer/i.test(sentence)    // ...grants to customer
+  );
+  
+  // Require explicit data reference OR customer context
+  // Do NOT match licenses to other materials (software, IP, etc.) even if provider is mentioned
+  return hasLicenseLanguage && (hasDataReference || hasCustomerContext);
+}
+
+/**
+ * Checks if a license clause is reasonably scoped (not perpetual/irrevocable)
+ * Returns true if the license is limited to the term, service provision, etc.
+ * 
+ * Note: This function is currently unused but kept for potential future enhancements
+ * where we might want to distinguish between different license types.
+ */
+function isReasonablyScopedLicense(sentence: string): boolean {
+  const lowered = sentence.toLowerCase();
+  
+  // If it's perpetual and irrevocable, it's not reasonably scoped
+  if (hasPerpetualIrrevocableLicense(sentence)) {
+    return false;
+  }
+  
+  // Check for reasonable scoping language
+  const scopingPatterns = [
+    /during\s+the\s+term/i,
+    /for\s+the\s+purpose\s+of\s+providing/i,
+    /solely\s+for\s+the\s+purpose/i,
+    /limited\s+to\s+the\s+provision/i,
+    /while\s+this\s+agreement\s+is\s+in\s+effect/i,
+    /during\s+the\s+term\s+of\s+this\s+agreement/i
+  ];
+  
+  return scopingPatterns.some(pattern => pattern.test(sentence));
+}
+
 export function analyzeContract(text: string): ContractAnalysis {
   const sentences = splitSentences(text);
   const loweredText = text.toLowerCase();
@@ -340,6 +486,8 @@ export function analyzeContract(text: string): ContractAnalysis {
   const rawRenewal: Array<{ sentence: string; renewalDate?: string; renewalTerm?: string }> = [];
   const rawEscalators: Array<{ sentence: string; percentage?: string; frequency?: string; cap?: string }> = [];
   const rawAutoRenewal: Array<{ sentence: string; noticePeriod?: string; cancellationMethod?: string }> = [];
+  const dataOwnershipClauses: string[] = [];
+  const perpetualIrrevocableLicenseClauses: string[] = [];
 
   for (const sentence of sentences) {
     const lowered = sentence.toLowerCase();
@@ -395,13 +543,28 @@ export function analyzeContract(text: string): ContractAnalysis {
         cancellationMethod: extractCancellationMethod(sentence)
       });
     }
+
+    // Data ownership clauses
+    if (hasDataOwnershipLanguage(sentence)) {
+      dataOwnershipClauses.push(sentence);
+    }
+
+    // Perpetual irrevocable license clauses
+    if (hasPerpetualIrrevocableLicense(sentence)) {
+      perpetualIrrevocableLicenseClauses.push(sentence);
+    }
+    // Note: Reasonably scoped licenses are detected by isReasonablyScopedLicense() but not collected
+    // since they're only used to exclude sentences from being flagged as perpetual/irrevocable.
+    // The scoring logic only needs to check if perpetual irrevocable licenses exist.
   }
 
   const scored = scoreContractAnalysis({
     renewalClauses: rawRenewal,
     priceEscalators: rawEscalators,
     autoRenewalClauses: rawAutoRenewal,
-    fullText: text
+    fullText: text,
+    dataOwnershipClauses,
+    perpetualIrrevocableLicenseClauses
   });
 
   const summaryParts: string[] = [];

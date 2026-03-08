@@ -9,7 +9,7 @@ export interface ScoredIssue {
   severity: Severity;
   reason: string;
   clauseText?: string;
-  category: "renewal" | "price_escalator" | "auto_renewal" | "termination" | "general";
+  category: "renewal" | "price_escalator" | "auto_renewal" | "termination" | "data_ownership" | "general";
 }
 
 /** Notice period in days for comparison (normalized from "X days" or "X months") */
@@ -123,6 +123,8 @@ export interface ScoringInput {
   priceEscalators: RawPriceEscalatorClause[];
   autoRenewalClauses: RawAutoRenewalClause[];
   fullText: string;
+  dataOwnershipClauses: string[];
+  perpetualIrrevocableLicenseClauses: string[];
 }
 
 export interface ScoringResult {
@@ -133,7 +135,14 @@ export interface ScoringResult {
 }
 
 export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
-  const { renewalClauses, priceEscalators, autoRenewalClauses, fullText } = input;
+  const { 
+    renewalClauses, 
+    priceEscalators, 
+    autoRenewalClauses, 
+    fullText,
+    dataOwnershipClauses,
+    perpetualIrrevocableLicenseClauses
+  } = input;
   const issues: ScoredIssue[] = [];
   const lowered = fullText.toLowerCase();
 
@@ -217,6 +226,22 @@ export function scoreContractAnalysis(input: ScoringInput): ScoringResult {
       severity: "medium",
       reason: "No explicit 'termination for convenience' language — confirm how you can exit before the end of the term.",
       category: "termination"
+    });
+  }
+
+  // --- Data ownership contradiction detection ---
+  // Flag HIGH if contract states Customer owns data but grants Provider a perpetual, irrevocable license
+  // Note: We only flag if there's a perpetual irrevocable license. Reasonably scoped licenses
+  // (limited to term/service provision) are not flagged, and the presence of both types
+  // doesn't negate the problem of the perpetual irrevocable license.
+  if (dataOwnershipClauses.length > 0 && perpetualIrrevocableLicenseClauses.length > 0) {
+    const ownershipClause = dataOwnershipClauses[0];
+    const licenseClause = perpetualIrrevocableLicenseClauses[0];
+    issues.push({
+      severity: "high",
+      reason: "Contract states Customer owns its data but grants Provider a perpetual, irrevocable license over it — these may conflict. Review with counsel.",
+      category: "data_ownership",
+      clauseText: `Ownership: "${ownershipClause}" | License: "${licenseClause}"`
     });
   }
 
