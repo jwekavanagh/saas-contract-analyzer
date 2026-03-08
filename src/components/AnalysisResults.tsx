@@ -109,8 +109,6 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
 
   const highCount = issues.filter((i) => i.severity === "high").length;
   const mediumCount = issues.filter((i) => i.severity === "medium").length;
-  const lowCount = issues.filter((i) => i.severity === "low").length;
-  const infoCount = issues.filter((i) => i.severity === "informational").length;
   
   // Red Flags only shows high and medium severity issues
   const redFlagsIssues = issues.filter((i) => i.severity === "high" || i.severity === "medium");
@@ -120,16 +118,6 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
   const redFlagsBreakdown = redFlagsSummaryParts.length
     ? redFlagsSummaryParts.join(" · ")
     : "No high-priority issues detected.";
-
-  // Full severity breakdown for overview (includes all severities)
-  const severitySummaryParts: string[] = [];
-  if (highCount) severitySummaryParts.push(`${highCount} high`);
-  if (mediumCount) severitySummaryParts.push(`${mediumCount} medium`);
-  if (lowCount) severitySummaryParts.push(`${lowCount} low`);
-  if (infoCount) severitySummaryParts.push(`${infoCount} informational`);
-  const severityBreakdown = severitySummaryParts.length
-    ? severitySummaryParts.join(" · ")
-    : "No issues flagged.";
 
   const renewalSummary = renewalClauses.length
     ? `${renewalClauses.length} renewal-related clause${renewalClauses.length > 1 ? "s" : ""} detected.`
@@ -164,8 +152,8 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
       `${autoRenewalClauses.length} auto-renewal clause${autoRenewalClauses.length > 1 ? "s" : ""}`
     );
   }
-  if (issues.length > 0) {
-    overallSummaryParts.push(severityBreakdown);
+  if (redFlagsIssues.length > 0) {
+    overallSummaryParts.push(redFlagsBreakdown);
   }
 
   const overallSummary =
@@ -297,11 +285,6 @@ export function AnalysisResults({ analysis }: { analysis: ContractAnalysis }) {
           ) : (
             <div className="detail-panel-inner">
               <h3 className="detail-panel-title">Red Flags & To-Dos</h3>
-              <p className="summary-text">
-                {redFlagsIssues.length > 0
-                  ? `Found ${redFlagsIssues.length} high-priority issue${redFlagsIssues.length !== 1 ? "s" : ""} requiring attention (${highCount} high severity, ${mediumCount} medium severity). Review each item below and address them before signing.`
-                  : "No high-priority issues detected. The contract appears to have no critical red flags, but you should still review it with legal counsel."}
-              </p>
               {redFlagsIssues.length > 0 ? (
                 <ul className="issues-list-by-severity">
                   {redFlagsIssues.map((issue, idx) => (
